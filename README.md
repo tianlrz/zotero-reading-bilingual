@@ -2,7 +2,7 @@
 
 专为 Zotero 阅读模式打造的中英双语对照翻译插件。译文以卡片形式插在原文段落之下，原文保持不动。
 
-![version](https://img.shields.io/badge/version-1.5.0-blue) ![license](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/badge/version-1.5.1-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
 ![demo](docs/demo.gif)
 

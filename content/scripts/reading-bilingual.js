@@ -424,7 +424,7 @@ var ReadingBilingual = {
   // Zotero has no preference for these: the reading-mode defaults live in a
   // frozen constant inside the bundled reader, and the panel's value is only
   // kept for the open document. So apply the user's choice once per view.
-  applyReaderAppearanceDefaults(reader) {
+  applyReaderAppearanceDefaults(reader, attempt = 0) {
     try {
       const pageWidth = this.getReaderPageWidth();
       const scale = this.getReaderScale();
@@ -432,7 +432,17 @@ var ReadingBilingual = {
 
       const internal = reader?._internalReader || reader;
       const view = internal?._primarySDTView;
-      if (!view || this._appearanceApplied.has(view)) return;
+
+      // The reading-mode view is built well after the tab opens, and once the
+      // page settles there are no more mutations to piggyback on. Without this
+      // retry the defaults were simply never applied to a restored session.
+      if (!view) {
+        if (attempt < 20) {
+          setTimeout(() => this.applyReaderAppearanceDefaults(reader, attempt + 1), 700);
+        }
+        return;
+      }
+      if (this._appearanceApplied.has(view)) return;
       this._appearanceApplied.add(view);
 
       if (pageWidth !== "off" && typeof internal._handleAppearanceChange === "function") {
@@ -1008,8 +1018,12 @@ var ReadingBilingual = {
     if (!Zotero.Reader || !Zotero.Reader._readers) return;
     const readers = Object.values(Zotero.Reader._readers);
     for (let r of readers) {
-      const doc = this.getRealContentDoc(r);
-      if (doc) {
+      // Isolate each reader: one closed or torn-down tab used to throw here and
+      // leave every other open reader un-restyled, so changing the font or
+      // colour in Settings looked like it did nothing at all.
+      try {
+        const doc = this.getRealContentDoc(r);
+        if (!doc) continue;
         let style = doc.getElementById("zotero-bilingual-style");
         if (!style) {
           style = doc.createElement("style");
@@ -1017,6 +1031,8 @@ var ReadingBilingual = {
           (doc.head || doc.body).appendChild(style);
         }
         style.textContent = css;
+      } catch (e) {
+        Zotero.debug("[ReadingBilingual] updateAllReaderStyles skipped a reader: " + e);
       }
     }
   },
@@ -1861,52 +1877,45 @@ var ReadingBilingual = {
   },
 
   // Deep Document Resolver for Zotero 10 SDT Reading Mode & PDF Views
+  // A view that has been torn down -- which is exactly what toggling reading
+  // mode leaves behind in _views -- keeps its slot, and touching its document
+  // throws "can't access dead object". Every lookup below has to tolerate that
+  // instead of letting one corpse abort the whole search.
+  _viewDoc(view, selector) {
+    try {
+      const doc = view?._iframeDocument || view?._iframe?.contentDocument || view?._iframeWindow?.document;
+      if (doc && doc.querySelector(selector)) return doc;
+    } catch (e) {}
+    return null;
+  },
+
   getRealContentDoc(reader) {
     if (!reader) return null;
     const internal = reader._internalReader || reader;
 
     // 1. Zotero 10 SDT View (阅读模式专有视图)
-    if (internal._primarySDTView) {
-      const doc = internal._primarySDTView._iframeDocument || 
-                  internal._primarySDTView._iframe?.contentDocument ||
-                  internal._primarySDTView._iframeWindow?.document;
-      if (doc && doc.querySelector("#sdt-content, p")) {
-        return doc;
-      }
-    }
+    const sdtDoc = this._viewDoc(internal._primarySDTView, "#sdt-content, p");
+    if (sdtDoc) return sdtDoc;
 
     // 2. Active View via _getActiveView(true)
     if (typeof internal._getActiveView === "function") {
-      const active = internal._getActiveView(true);
-      if (active) {
-        const doc = active._iframeDocument || 
-                    active._iframe?.contentDocument || 
-                    active._iframeWindow?.document;
-        if (doc && doc.querySelector("#sdt-content, p, article")) {
-          return doc;
-        }
-      }
+      let active = null;
+      try { active = internal._getActiveView(true); } catch (e) {}
+      const activeDoc = this._viewDoc(active, "#sdt-content, p, article");
+      if (activeDoc) return activeDoc;
     }
 
     // 3. Inspect internal._views array
     if (internal._views && Array.isArray(internal._views)) {
       for (let v of internal._views) {
-        const d = v._iframeDocument || v._iframe?.contentDocument || v._iframeWindow?.document;
-        if (d && d.querySelector("#sdt-content, p")) {
-          return d;
-        }
+        const d = this._viewDoc(v, "#sdt-content, p");
+        if (d) return d;
       }
     }
 
     // 4. Primary View document (PDF viewer or web viewer)
-    if (internal._primaryView) {
-      const pdoc = internal._primaryView._iframeWindow?.document ||
-                   internal._primaryView._iframe?.contentDocument ||
-                   internal._primaryView._iframeDocument;
-      if (pdoc && pdoc.querySelector("p, .textLayer > div")) {
-        return pdoc;
-      }
-    }
+    const primaryDoc = this._viewDoc(internal._primaryView, "p, .textLayer > div");
+    if (primaryDoc) return primaryDoc;
 
     // 5. Recursive traversal of all nested iframes
     let candidates = [];

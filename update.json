@@ -3,8 +3,8 @@
     "reading-bilingual@lrz.org": {
       "updates": [
         {
-          "version": "1.5.0",
-          "update_link": "https://github.com/tianlrz/zotero-reading-bilingual/releases/download/v1.5.0/zotero-reading-bilingual.xpi",
+          "version": "1.5.1",
+          "update_link": "https://github.com/tianlrz/zotero-reading-bilingual/releases/download/v1.5.1/zotero-reading-bilingual.xpi",
           "applications": {
             "zotero": {
               "strict_min_version": "6.999",
