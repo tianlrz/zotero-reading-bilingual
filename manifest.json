@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Zotero 阅读模式沉浸式双语",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "专为 Zotero 10 阅读模式打造的沉浸式中英双语对照翻译插件，支持自定义 API 接口、多服务商与学术级排版。",
   "homepage_url": "https://github.com/tianlrz/zotero-reading-bilingual",
   "author": "tianlrz",

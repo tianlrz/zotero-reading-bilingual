@@ -103,6 +103,13 @@ var ReadingBilingual = {
     setTimeout(() => this.scanExistingReaders(), 300);
     setTimeout(() => this.scanExistingReaders(), 1200);
     setTimeout(() => this.scanExistingReaders(), 2500);
+
+    // Reading-mode views appear at times no hook reliably covers: a newly
+    // opened tab, reading mode switched on minutes later, a restored session.
+    // A cheap idempotent sweep beats chasing each of those separately -- it
+    // only reads two properties per open reader and does nothing once a view
+    // has been handled.
+    this._appearanceSweep = setInterval(() => this.sweepReaderAppearance(), 1500);
   },
 
   scanExistingReaders() {
@@ -424,6 +431,21 @@ var ReadingBilingual = {
   // Zotero has no preference for these: the reading-mode defaults live in a
   // frozen constant inside the bundled reader, and the panel's value is only
   // kept for the open document. So apply the user's choice once per view.
+  sweepReaderAppearance() {
+    try {
+      if (this.getReaderPageWidth() === "off" && !this.getReaderScale()) return;
+      if (!Zotero.Reader || !Zotero.Reader._readers) return;
+      for (const reader of Object.values(Zotero.Reader._readers)) {
+        try {
+          const view = (reader?._internalReader || reader)?._primarySDTView;
+          if (view && !this._appearanceApplied.has(view)) {
+            this.applyReaderAppearanceDefaults(reader);
+          }
+        } catch (e) {}
+      }
+    } catch (e) {}
+  },
+
   applyReaderAppearanceDefaults(reader, attempt = 0) {
     try {
       const pageWidth = this.getReaderPageWidth();
@@ -1379,6 +1401,11 @@ var ReadingBilingual = {
       try { observer.disconnect(); } catch (e) {}
     }
     this._observers = [];
+
+    if (this._appearanceSweep) {
+      clearInterval(this._appearanceSweep);
+      this._appearanceSweep = null;
+    }
 
     if (this._autoTranslateTimer) {
       clearTimeout(this._autoTranslateTimer);
