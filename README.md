@@ -4,6 +4,28 @@
 
 ![version](https://img.shields.io/badge/version-1.3.0-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
+![demo](docs/demo.gif)
+
+> 点击工具栏的「双语」按钮即可在原文与双语对照之间切换。
+
+## 效果
+
+**段落对照**：译文卡片插在原文之下，原文一个字都不动。
+
+![paragraph](docs/paragraph.png)
+
+**目录整体翻译**：整页目录合成一张卡片，保留章节号、原标题与页码，跨页断开的目录会自动合并。
+
+![toc](docs/toc.png)
+
+**表格整体翻译**：阅读模式把 PDF 表格渲染成图片、文字藏在隐藏节点里，插件把整张表当一个单元翻译并还原成分行分列的中文。
+
+![table](docs/table.png)
+
+**设置**：Zotero 设置 → 沉浸式双语。
+
+![settings](docs/settings.png)
+
 ## 功能
 
 - **段落级对照**：正文按段成批翻译，译文卡片插在原文下方，可编辑、复制、单独删除。
