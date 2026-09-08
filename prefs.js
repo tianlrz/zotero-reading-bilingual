@@ -1,0 +1,14 @@
+pref("extensions.zotero.reading-bilingual.provider", "gemini");
+pref("extensions.zotero.reading-bilingual.baseUrl", "");
+pref("extensions.zotero.reading-bilingual.apiKey", "");
+pref("extensions.zotero.reading-bilingual.model", "gemini-flash-latest");
+pref("extensions.zotero.reading-bilingual.autoTranslate", true);
+pref("extensions.zotero.reading-bilingual.fontFamily", "songti");
+pref("extensions.zotero.reading-bilingual.customFont", "");
+pref("extensions.zotero.reading-bilingual.frameTheme", "crimson");
+pref("extensions.zotero.reading-bilingual.customColor", "#a8202b");
+pref("extensions.zotero.reading-bilingual.cardBg", "transparent");
+pref("extensions.zotero.reading-bilingual.fontSize", "0.95em");
+pref("extensions.zotero.reading-bilingual.lineHeight", "1.75");
+pref("extensions.zotero.reading-bilingual.borderStyle", "straight");
+pref("extensions.zotero.reading-bilingual.translateTables", true);

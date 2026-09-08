@@ -1,0 +1,190 @@
+<vbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+      xmlns:html="http://www.w3.org/1999/xhtml"
+      id="reading-bilingual-prefpane"
+      class="main-section"
+      style="padding: 18px 24px; gap: 16px;">
+
+	<html:div style="margin-bottom: 2px;">
+		<html:p style="margin: 0; font-size: 12.5px; color: var(--fill-secondary, #666); line-height: 1.45;">
+			专为 Zotero 阅读模式打造的双语对照翻译，支持自定义 API 接口、多服务商与学术级排版。
+		</html:p>
+	</html:div>
+
+	<!-- Provider & API Setting -->
+	<groupbox style="padding: 14px 16px; border-radius: 8px; border: 1px solid var(--material-panedivider, #e0e0e0);">
+		<label><html:h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0;">模型服务商与 API 配置</html:h3></label>
+		
+		<vbox style="gap: 12px;">
+			<!-- Provider Preset -->
+			<hbox align="center" style="gap: 12px;">
+				<label value="服务提供商:" style="width: 95px;"/>
+				<html:select id="reading-bilingual-pref-provider"
+				             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+					<html:option value="gemini">Google Gemini (AI Studio)</html:option>
+					<html:option value="deepseek">DeepSeek (官方直连)</html:option>
+					<html:option value="siliconflow">硅基流动 SiliconFlow (赠送2000万Token)</html:option>
+					<html:option value="openrouter">OpenRouter (全模型聚合)</html:option>
+					<html:option value="moonshot">月之暗面 Kimi (Moonshot)</html:option>
+					<html:option value="qwen">阿里百炼 (通义千问 Qwen)</html:option>
+					<html:option value="openai">OpenAI (官方)</html:option>
+					<html:option value="custom">自定义 OpenAI 兼容接口</html:option>
+				</html:select>
+			</hbox>
+
+			<!-- Base URL -->
+			<hbox id="reading-bilingual-baseurl-row" align="center" style="gap: 12px;">
+				<label value="接口地址 (URL):" style="width: 95px;"/>
+				<html:input id="reading-bilingual-pref-baseurl" type="text"
+				            placeholder="例如: https://api.deepseek.com/v1"
+				            style="flex: 1; padding: 7px 10px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 6px; font-family: monospace; font-size: 12px; background: var(--material-sidepane, #fff); color: inherit;"/>
+			</hbox>
+
+			<!-- API Key -->
+			<hbox align="center" style="gap: 12px;">
+				<label value="API Key:" style="width: 95px;"/>
+				<html:input id="reading-bilingual-pref-apikey" type="text"
+				            placeholder="输入对应服务商的 API Key"
+				            style="flex: 1; padding: 7px 10px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 6px; font-family: monospace; font-size: 12px; background: var(--material-sidepane, #fff); color: inherit;"/>
+				<button id="reading-bilingual-pref-test-key" label="测试连接并拉取模型" style="padding: 4px 12px; cursor: pointer;"/>
+			</hbox>
+		</vbox>
+
+		<html:div id="reading-bilingual-key-status" style="font-size: 12px; margin-top: 10px; line-height: 1.5;"></html:div>
+	</groupbox>
+
+	<!-- Model Selection -->
+	<groupbox style="padding: 14px 16px; border-radius: 8px; border: 1px solid var(--material-panedivider, #e0e0e0);">
+		<label><html:h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0;">主力翻译模型与行为</html:h3></label>
+		<vbox style="gap: 10px; margin-bottom: 12px;">
+			<hbox align="center" style="gap: 12px;">
+				<label value="主力翻译模型:" style="width: 95px;"/>
+				<html:select id="reading-bilingual-pref-model"
+				             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+				</html:select>
+			</hbox>
+			<html:div id="reading-bilingual-custom-model-box" style="display: none; margin-left: 107px;">
+				<html:input id="reading-bilingual-pref-custom-model" type="text"
+				            placeholder="输入模型 ID，例如: deepseek-chat 或 gemini-flash-latest"
+				            style="width: 320px; padding: 6px 10px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 6px; font-size: 12px; background: var(--material-sidepane, #fff); color: inherit;"/>
+			</html:div>
+		</vbox>
+		<hbox align="center">
+			<checkbox id="reading-bilingual-pref-autotrans" label="进入阅读模式时自动翻译（本地已有缓存则秒级载入，不消耗 API 额度）"/>
+		</hbox>
+		<hbox align="center">
+			<checkbox id="reading-bilingual-pref-tables" label="翻译表格与图块（整张表作为一个整体翻译；关闭可节约 API 额度）"/>
+		</hbox>
+	</groupbox>
+
+	<!-- Appearance: Font & Frame Styling -->
+	<groupbox style="padding: 14px 16px; border-radius: 8px; border: 1px solid var(--material-panedivider, #e0e0e0);">
+		<label><html:h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0;">排版美化：字体与视觉框架</html:h3></label>
+		
+		<vbox style="gap: 12px;">
+			<!-- Font Family Selection -->
+			<hbox align="center" style="gap: 12px;">
+				<label value="译文字体:" style="width: 95px;"/>
+				<html:select id="reading-bilingual-pref-font"
+				             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+					<html:option value="songti">典雅宋体 (Songti / 经典衬线，极具学术质感 - 推荐)</html:option>
+					<html:option value="sans">现代黑体 (System Sans / 清晰锐利，极简现代)</html:option>
+					<html:option value="kaiti">人文楷体 (Kaiti / 书卷墨香，笔触温润)</html:option>
+					<html:option value="fangsong">文雅仿宋 (FangSong / 公文排版，端庄雅致)</html:option>
+					<html:option value="wenkai">霞鹜文楷 (LXGW WenKai / 优雅悦读)</html:option>
+					<html:option value="inherit">继承正文字体 (与当前文献保持一致)</html:option>
+					<html:option value="custom">自定义字体名称...</html:option>
+				</html:select>
+			</hbox>
+
+			<!-- Custom Font Input -->
+			<hbox id="reading-bilingual-custom-font-row" align="center" style="gap: 12px; display: none;">
+				<label value="自定义字体:" style="width: 95px;"/>
+				<html:input id="reading-bilingual-pref-custom-font" type="text"
+				            placeholder="输入系统已安装的字体，例如: 思源宋体 或 Source Han Serif"
+				            style="flex: 1; padding: 6px 10px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 6px; font-size: 12px; background: var(--material-sidepane, #fff); color: inherit;"/>
+			</hbox>
+
+			<!-- Frame Theme Selection -->
+			<hbox align="center" style="gap: 12px;">
+				<label value="边框配色:" style="width: 95px;"/>
+				<html:select id="reading-bilingual-pref-frame"
+				             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+					<html:option value="crimson">典雅朱红 (Academic Crimson - 精致侧边线，推荐)</html:option>
+					<html:option value="indigo">经典学术蓝 (Classic Indigo - 科技现代)</html:option>
+					<html:option value="slate">水墨苍青 (Ink Slate - 极简沉稳)</html:option>
+					<html:option value="emerald">林间青绿 (Forest Emerald - 柔和护眼)</html:option>
+					<html:option value="amber">琥珀暖金 (Warm Amber - 羊皮纸感)</html:option>
+					<html:option value="minimal">极简微灰 (Minimal Grey - 浅淡无感)</html:option>
+					<html:option value="custom">自定义边框颜色...</html:option>
+				</html:select>
+			</hbox>
+
+			<!-- Custom Color Picker -->
+			<hbox id="reading-bilingual-custom-color-row" align="center" style="gap: 12px; display: none;">
+				<label value="边框色值:" style="width: 95px;"/>
+				<html:input id="reading-bilingual-pref-custom-color" type="color" value="#a8202b"
+				            style="width: 42px; height: 28px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 4px; padding: 0; cursor: pointer; background: transparent;"/>
+				<html:input id="reading-bilingual-pref-custom-color-text" type="text" value="#a8202b"
+				            placeholder="#a8202b"
+				            style="width: 100px; padding: 5px 8px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 6px; font-size: 12px; font-family: monospace; background: var(--material-sidepane, #fff); color: inherit;"/>
+			</hbox>
+
+			<!-- Border Line Style Selection -->
+			<hbox align="center" style="gap: 12px;">
+				<label value="边栏线条:" style="width: 95px;"/>
+				<html:select id="reading-bilingual-pref-border-style"
+				             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+					<html:option value="straight">笔直纯直线 (纯直立无圆弧，清爽平直 - 默认)</html:option>
+					<html:option value="pill">圆角指示条 (现代胶囊条，圆润独立端头)</html:option>
+					<html:option value="dashed">雅致虚线 (Dashed Line，灵动点阵)</html:option>
+					<html:option value="double">双细实线 (Academic Double，经典学术双线)</html:option>
+					<html:option value="thick">加粗醒目条 (4.5px 粗线条，重点突出)</html:option>
+					<html:option value="minimal">纤细实线 (1.5px 细直立线，极简浅淡)</html:option>
+					<html:option value="none">无指示线 (纯底色模式，无侧边栏)</html:option>
+				</html:select>
+			</hbox>
+
+			<!-- Card Background Mode -->
+			<hbox align="center" style="gap: 12px;">
+				<label value="卡片底色:" style="width: 95px;"/>
+				<html:select id="reading-bilingual-pref-cardbg"
+				             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+					<html:option value="transparent">通透纯净 (透明无背景，完美融入护眼/羊皮纸底色)</html:option>
+					<html:option value="tint">微透浅底 (微量主题色浸润)</html:option>
+					<html:option value="solid">实体卡片 (纯白/深色微阴影卡片)</html:option>
+				</html:select>
+			</hbox>
+
+			<!-- Live Preview -->
+			<html:div style="margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--material-panedivider, #e5e5e5);">
+				<html:div style="font-size: 11.5px; color: var(--fill-secondary, #666); margin-bottom: 8px; font-weight: 500;">
+					效果实时预览 (可随时切换上方选项预览不同风格)：
+				</html:div>
+				<html:div id="reading-bilingual-preview-card"
+				          style="padding: 10px 16px; border-left: 3.5px solid #a8202b; border-radius: 0; font-size: 13px; line-height: 1.75; font-family: 'Songti SC', 'Source Han Serif SC', 'Noto Serif SC', 'STSong', 'SimSun', serif; color: inherit; transition: all 0.2s ease;">
+					摘要 | 在本文中，我们对智能体技能（agent skills）进行了系统性梳理。大语言模型（LLM）智能体通过实现能力模块化，构建出独立于提示词与工作记忆之外的核心知识体系。
+				</html:div>
+			</html:div>
+		</vbox>
+	</groupbox>
+
+	<!-- Custom Prompt -->
+	<groupbox style="padding: 14px 16px; border-radius: 8px; border: 1px solid var(--material-panedivider, #e0e0e0);">
+		<hbox align="center" style="justify-content: space-between; margin-bottom: 8px;">
+			<label><html:h3 style="font-size: 13px; font-weight: 600; margin: 0;">自定义学术翻译 Prompt</html:h3></label>
+			<button id="reading-bilingual-pref-reset-prompt" label="恢复默认 Prompt"/>
+		</hbox>
+		<html:textarea id="reading-bilingual-pref-prompt"
+		               style="width: 100%; height: 160px; box-sizing: border-box; padding: 10px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 6px; font-size: 12px; line-height: 1.55; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; resize: vertical; background: var(--material-sidepane, #fff); color: inherit;"/>
+		<html:div style="font-size: 11.5px; color: var(--fill-secondary, #666); margin-top: 6px; line-height: 1.4;">
+			说明：可在此处定义专业词汇译法与排版准则，已预设禁止中文后附带括号英文、禁止生硬直译等规范。
+		</html:div>
+	</groupbox>
+
+	<!-- Action Footer -->
+	<hbox align="center" style="justify-content: flex-end; gap: 12px; margin-top: 6px;">
+		<html:span id="reading-bilingual-save-msg" style="font-size: 12px; color: #16a34a; font-weight: 500; display: none;">设置已成功保存</html:span>
+		<button id="reading-bilingual-pref-save" label="保存设置" style="font-weight: 600; padding: 4px 18px;"/>
+	</hbox>
+
+</vbox>
