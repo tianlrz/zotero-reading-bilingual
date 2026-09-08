@@ -94,6 +94,8 @@
     const autoTransCheck = document.getElementById("reading-bilingual-pref-autotrans");
     const tablesCheck = document.getElementById("reading-bilingual-pref-tables");
     const concurrencySelect = document.getElementById("reading-bilingual-pref-concurrency");
+    const pageWidthSelect = document.getElementById("reading-bilingual-pref-pagewidth");
+    const readerScaleSelect = document.getElementById("reading-bilingual-pref-readerscale");
     const promptArea = document.getElementById("reading-bilingual-pref-prompt");
     const resetBtn = document.getElementById("reading-bilingual-pref-reset-prompt");
     const saveBtn = document.getElementById("reading-bilingual-pref-save");
@@ -227,6 +229,8 @@
     autoTransCheck.checked = plugin.getAutoTranslate();
     if (tablesCheck) tablesCheck.checked = plugin.getTranslateTables ? plugin.getTranslateTables() : true;
     if (concurrencySelect && plugin.getConcurrency) concurrencySelect.value = String(plugin.getConcurrency());
+    if (pageWidthSelect && plugin.getReaderPageWidth) pageWidthSelect.value = plugin.getReaderPageWidth();
+    if (readerScaleSelect && plugin.getReaderScale) readerScaleSelect.value = String(plugin.getReaderScale());
     promptArea.value = plugin.getCustomPrompt();
     updateKeyStatus();
 
@@ -370,6 +374,8 @@
       const auto = autoTransCheck.checked;
       if (tablesCheck && plugin.setTranslateTables) plugin.setTranslateTables(tablesCheck.checked);
       if (concurrencySelect && plugin.setConcurrency) plugin.setConcurrency(concurrencySelect.value);
+      if (pageWidthSelect && plugin.setReaderPageWidth) plugin.setReaderPageWidth(pageWidthSelect.value);
+      if (readerScaleSelect && plugin.setReaderScale) plugin.setReaderScale(readerScaleSelect.value);
       const prompt = promptArea.value.trim();
 
       if (plugin.setProvider) plugin.setProvider(provider);
@@ -493,6 +499,12 @@
       concurrencySelect.addEventListener("change", saveAll);
       concurrencySelect.addEventListener("command", saveAll);
     }
+
+    [pageWidthSelect, readerScaleSelect].forEach((el) => {
+      if (!el) return;
+      el.addEventListener("change", saveAll);
+      el.addEventListener("command", saveAll);
+    });
 
     if (tablesCheck) {
       tablesCheck.addEventListener("command", saveAll);

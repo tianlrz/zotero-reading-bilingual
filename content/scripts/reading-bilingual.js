@@ -11,6 +11,9 @@ var ReadingBilingual = {
   // tab by a previous load can be told apart from what this load injected
   sessionId: String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8),
   _observers: [],
+  // One-shot marker per reading-mode view, so the defaults are applied when a
+  // document opens and never fight a manual change afterwards
+  _appearanceApplied: new WeakSet(),
 
   // Preferences
   PREF_PROVIDER: "extensions.zotero.reading-bilingual.provider",
@@ -29,6 +32,8 @@ var ReadingBilingual = {
   PREF_BORDER_STYLE: "extensions.zotero.reading-bilingual.borderStyle",
   PREF_TRANSLATE_TABLES: "extensions.zotero.reading-bilingual.translateTables",
   PREF_CONCURRENCY: "extensions.zotero.reading-bilingual.concurrency",
+  PREF_READER_PAGE_WIDTH: "extensions.zotero.reading-bilingual.readerPageWidth",
+  PREF_READER_SCALE: "extensions.zotero.reading-bilingual.readerScale",
   DEFAULT_CONCURRENCY: 3,
   DEFAULT_PROVIDER: "gemini",
   DEFAULT_MODEL: "gemini-flash-latest",
@@ -108,6 +113,7 @@ var ReadingBilingual = {
         if (doc) {
           this.injectToolbarButton(reader, doc);
           this.setupReadingModeObserver(reader, doc);
+          this.applyReaderAppearanceDefaults(reader);
         }
       } catch (e) {}
     }
@@ -131,6 +137,7 @@ var ReadingBilingual = {
         if (doc) {
           this.injectToolbarButton(reader, doc);
           this.setupReadingModeObserver(reader, doc);
+          this.applyReaderAppearanceDefaults(reader);
         }
       }
     } catch (e) {}
@@ -385,6 +392,75 @@ var ReadingBilingual = {
   setConcurrency(v) {
     const n = Math.min(8, Math.max(1, parseInt(v, 10) || this.DEFAULT_CONCURRENCY));
     Zotero.Prefs.set(this.PREF_CONCURRENCY, n, true);
+  },
+
+  // Reading-mode page width. "off" leaves Zotero's own value alone.
+  getReaderPageWidth() {
+    try {
+      const v = Zotero.Prefs.get(this.PREF_READER_PAGE_WIDTH, true);
+      if (v && ["off", "narrow", "normal", "full"].includes(String(v))) return String(v);
+    } catch (e) {}
+    return "off";
+  },
+
+  setReaderPageWidth(v) {
+    Zotero.Prefs.set(this.PREF_READER_PAGE_WIDTH, String(v || "off"), true);
+  },
+
+  // Reading-mode text scale as a percentage. 0 means "leave it alone".
+  getReaderScale() {
+    try {
+      const v = parseInt(Zotero.Prefs.get(this.PREF_READER_SCALE, true), 10);
+      if (Number.isFinite(v) && v >= 50 && v <= 400) return v;
+    } catch (e) {}
+    return 0;
+  },
+
+  setReaderScale(v) {
+    const n = parseInt(v, 10);
+    Zotero.Prefs.set(this.PREF_READER_SCALE, Number.isFinite(n) && n >= 50 && n <= 400 ? n : 0, true);
+  },
+
+  // Zotero has no preference for these: the reading-mode defaults live in a
+  // frozen constant inside the bundled reader, and the panel's value is only
+  // kept for the open document. So apply the user's choice once per view.
+  applyReaderAppearanceDefaults(reader) {
+    try {
+      const pageWidth = this.getReaderPageWidth();
+      const scale = this.getReaderScale();
+      if (pageWidth === "off" && !scale) return;
+
+      const internal = reader?._internalReader || reader;
+      const view = internal?._primarySDTView;
+      if (!view || this._appearanceApplied.has(view)) return;
+      this._appearanceApplied.add(view);
+
+      if (pageWidth !== "off" && typeof internal._handleAppearanceChange === "function") {
+        const current = view.appearance || {};
+        const payload = {
+          lineHeight: current.lineHeight ?? 1.2,
+          wordSpacing: current.wordSpacing ?? 0,
+          letterSpacing: current.letterSpacing ?? 0,
+          useOriginalFont: current.useOriginalFont ?? false,
+          pageWidth: { narrow: -1, normal: 0, full: 1 }[pageWidth],
+        };
+        // The reader lives in another compartment; a plain object handed
+        // straight across arrives with no readable properties and the reader
+        // silently falls back to its own defaults.
+        let arg = payload;
+        try {
+          const win = reader?._iframeWindow;
+          if (win && typeof Cu !== "undefined" && Cu.cloneInto) arg = Cu.cloneInto(payload, win);
+        } catch (e) {}
+        internal._handleAppearanceChange(arg);
+      }
+
+      if (scale && typeof view._setScale === "function") {
+        view._setScale(scale / 100);
+      }
+    } catch (e) {
+      Zotero.debug("[ReadingBilingual] applyReaderAppearanceDefaults: " + e);
+    }
   },
 
   // Run `worker` over `items` with at most `limit` in flight at once.
@@ -1654,6 +1730,7 @@ var ReadingBilingual = {
 
     const observer = new win.MutationObserver(() => {
       this.injectToolbarButton(reader, doc);
+      this.applyReaderAppearanceDefaults(reader);
       const curContentDoc = this.getRealContentDoc(reader);
       if (curContentDoc) this.setupSelectionContextMenu(reader, curContentDoc);
       this.scheduleAutoTranslate(reader);

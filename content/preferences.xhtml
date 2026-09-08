@@ -171,6 +171,38 @@
 				</html:select>
 			</hbox>
 
+			<!-- Reading-mode defaults (Zotero itself has no preference for these) -->
+			<hbox align="center" style="gap: 12px;">
+				<label value="默认页宽:" style="width: 95px;"/>
+				<html:select id="reading-bilingual-pref-pagewidth"
+				             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+					<html:option value="off">不修改 (沿用 Zotero 自身的 75% - 默认)</html:option>
+					<html:option value="narrow">50% (窄栏)</html:option>
+					<html:option value="normal">75% (Zotero 原始默认)</html:option>
+					<html:option value="full">100% (整幅铺满)</html:option>
+				</html:select>
+			</hbox>
+			<hbox align="center" style="gap: 12px;">
+				<label value="默认字号:" style="width: 95px;"/>
+				<html:select id="reading-bilingual-pref-readerscale"
+				             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+					<html:option value="0">不修改 (默认)</html:option>
+					<html:option value="100">100%</html:option>
+					<html:option value="110">110%</html:option>
+					<html:option value="125">125%</html:option>
+					<html:option value="140">140%</html:option>
+					<html:option value="150">150%</html:option>
+					<html:option value="165">165%</html:option>
+					<html:option value="175">175%</html:option>
+					<html:option value="200">200%</html:option>
+					<html:option value="225">225%</html:option>
+					<html:option value="250">250%</html:option>
+				</html:select>
+			</hbox>
+			<html:div style="margin-left: 107px; font-size: 11px; color: var(--fill-secondary, #777);">
+				Zotero 自身没有这两项的默认值设置，每次打开文献都会回到 75%。此处设定后，插件会在每篇文献进入阅读模式时代为应用一次；之后你在阅读器「外观」面板里手动调整不会被抢回去。
+			</html:div>
+
 			<!-- Live Preview -->
 			<html:div style="margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--material-panedivider, #e5e5e5);">
 				<html:div style="font-size: 11.5px; color: var(--fill-secondary, #666); margin-bottom: 8px; font-weight: 500;">
