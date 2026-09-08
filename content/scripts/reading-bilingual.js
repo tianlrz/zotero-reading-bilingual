@@ -28,6 +28,8 @@ var ReadingBilingual = {
   PREF_LINE_HEIGHT: "extensions.zotero.reading-bilingual.lineHeight",
   PREF_BORDER_STYLE: "extensions.zotero.reading-bilingual.borderStyle",
   PREF_TRANSLATE_TABLES: "extensions.zotero.reading-bilingual.translateTables",
+  PREF_CONCURRENCY: "extensions.zotero.reading-bilingual.concurrency",
+  DEFAULT_CONCURRENCY: 3,
   DEFAULT_PROVIDER: "gemini",
   DEFAULT_MODEL: "gemini-flash-latest",
   DEFAULT_BORDER_STYLE: "straight",
@@ -368,6 +370,35 @@ var ReadingBilingual = {
 
   setTranslateTables(val) {
     Zotero.Prefs.set(this.PREF_TRANSLATE_TABLES, !!val, true);
+  },
+
+  // How many API requests may be in flight at once. Higher is faster but more
+  // likely to hit the provider's rate limit, which comes back as failed cards.
+  getConcurrency() {
+    try {
+      const v = parseInt(Zotero.Prefs.get(this.PREF_CONCURRENCY, true), 10);
+      if (Number.isFinite(v)) return Math.min(8, Math.max(1, v));
+    } catch (e) {}
+    return this.DEFAULT_CONCURRENCY;
+  },
+
+  setConcurrency(v) {
+    const n = Math.min(8, Math.max(1, parseInt(v, 10) || this.DEFAULT_CONCURRENCY));
+    Zotero.Prefs.set(this.PREF_CONCURRENCY, n, true);
+  },
+
+  // Run `worker` over `items` with at most `limit` in flight at once.
+  async runPool(items, limit, worker) {
+    let next = 0;
+    const runner = async () => {
+      while (true) {
+        const idx = next++;
+        if (idx >= items.length) return;
+        await worker(items[idx], idx);
+      }
+    };
+    const width = Math.max(1, Math.min(limit, items.length));
+    await Promise.all(Array.from({ length: width }, runner));
   },
 
   setAutoTranslate(val) {
@@ -1939,7 +1970,15 @@ var ReadingBilingual = {
     }
   },
 
+  // Every write is a read-modify-write of one JSON file, so concurrent callers
+  // used to clobber each other and drop entries. Chain them instead.
   async saveCache(reader, newTranslations, overwrite = false) {
+    const run = () => this._saveCacheNow(reader, newTranslations, overwrite);
+    this._cacheWriteQueue = (this._cacheWriteQueue || Promise.resolve()).then(run, run);
+    return this._cacheWriteQueue;
+  },
+
+  async _saveCacheNow(reader, newTranslations, overwrite = false) {
     const path = await this.getCacheFilePath(reader);
     if (!path) return;
     try {
@@ -2009,7 +2048,8 @@ var ReadingBilingual = {
       const btnText = outerDoc?.getElementById("zrb-btn-text");
       if (btnText) btnText.textContent = "隐藏译文";
       if (btn) btn.classList.add("active");
-      return;
+      // Do not return: fall through so an interrupted run picks up where it
+      // stopped instead of leaving the untranslated tail sitting there.
     }
 
     await this.translateReader(reader, contentDoc, false /* isAuto */, false /* forceReTranslate */);
@@ -2471,6 +2511,7 @@ var ReadingBilingual = {
 
   // Core Translation Method with Instant Cache & Batching
   async translateReader(reader, doc, isAuto = false, forceReTranslate = false) {
+    let isResume = false;
     const outerDoc = reader._iframeWindow?.document || reader._iframe?.contentDocument || doc;
     const btn = outerDoc.getElementById("zotero-reading-bilingual-btn") || doc.getElementById("zotero-reading-bilingual-btn");
     const btnText = outerDoc.getElementById("zrb-btn-text") || doc.getElementById("zrb-btn-text");
@@ -2514,10 +2555,19 @@ var ReadingBilingual = {
       }
       await this.deleteCache(reader);
     } else {
-      // If cards already exist on page and not forcing re-translation, do not repeat
-      if (doc.querySelector(".zotero-bilingual-card")) {
-        return;
-      }
+      // Resume rather than bail out. Cards left over from an interrupted run
+      // are either finished (keep them, their paragraph is skipped below) or
+      // stuck / failed (drop them so this pass retries just those).
+      const existing = doc.querySelectorAll(".zotero-bilingual-card");
+      isResume = existing.length > 0;
+      existing.forEach((card) => {
+        if (card.classList.contains("zotero-bilingual-toc-card")) return;
+        const body = (card.querySelector(".zrb-card-content")?.textContent || card.textContent || "").trim();
+        const unfinished = card.classList.contains("translating") ||
+                           /^\[(?:翻译失败|译文解析空|表格翻译失败|学术目录整体翻译失败)/.test(body) ||
+                           body.startsWith("正在");
+        if (unfinished) card.remove();
+      });
     }
 
     // Helper for cleanly inserting translation cards (foolproof against duplicate cards)
@@ -2947,14 +2997,14 @@ var ReadingBilingual = {
       }
     }
 
-    // Translate whole tables / cropped blocks as single units
-    for (let block of tableBlocks) {
+    // Translate whole tables / cropped blocks as single units, several at once
+    await this.runPool(tableBlocks, this.getConcurrency(), async (block) => {
       try {
         await this.translateTableBlock(block, reader, doc, forceReTranslate);
       } catch (e) {
         Zotero.debug("[ReadingBilingual] Table translation error: " + e);
       }
-    }
+    });
 
     // Translate sidebar outline titles if available
     this.translateSidebarOutline(reader, outerDoc).catch((e) =>
@@ -2962,6 +3012,12 @@ var ReadingBilingual = {
     );
 
     if (paragraphs.length === 0) {
+      if (isResume) {
+        // Everything already has a card -- the resume found no gaps
+        if (btnText) btnText.textContent = "隐藏译文";
+        if (btn) btn.classList.add("active");
+        return;
+      }
       if (roadmapBlocks.length === 0 && tocBlocks.length === 0 && tableBlocks.length === 0) {
         if (!isAuto) {
           Services.prompt.alert(
@@ -3043,11 +3099,20 @@ var ReadingBilingual = {
     let completedCount = cachedCount;
     const newlyTranslatedMap = {};
     const batchSize = 5; // 5 paragraphs per API call
+    const concurrency = this.getConcurrency();
+
+    // Split first, then run several batches at once. Serially this was one
+    // request at a time plus a 600ms pause, which is what made a long paper
+    // take many minutes.
+    const batches = [];
+    for (let i = 0; i < paragraphsToTranslate.length; i += batchSize) {
+      batches.push(paragraphsToTranslate.slice(i, i + batchSize));
+    }
+    const totalAll = paragraphs.length;
 
     try {
-      for (let i = 0; i < paragraphsToTranslate.length; i += batchSize) {
-        const batch = paragraphsToTranslate.slice(i, i + batchSize);
-
+      await this.runPool(batches, concurrency, async (batch, batchIdx) => {
+        const batchResults = {};
         const placeholders = batch.map((p) => {
           const pLabel = provider === "gemini" ? "Gemini" : provider;
           const origText = p.innerText.trim();
@@ -3076,9 +3141,17 @@ var ReadingBilingual = {
               else card.textContent = textResult;
               this.attachCardActionHandlers(card, reader, doc, placeholders[idx].text);
               newlyTranslatedMap[placeholders[idx].text] = textResult;
+              batchResults[placeholders[idx].text] = textResult;
               completedCount++;
             }
           });
+
+          // Flush this batch immediately. Saving only at the very end meant an
+          // interrupted run (closed tab, quit Zotero, network drop) threw away
+          // every paragraph it had already paid for.
+          if (Object.keys(batchResults).length > 0) {
+            await this.saveCache(reader, batchResults);
+          }
         } catch (err) {
           placeholders.forEach((item) => {
             const card = item.card;
@@ -3092,17 +3165,17 @@ var ReadingBilingual = {
           });
         }
 
-        const totalAll = paragraphs.length;
         const pct = Math.round((completedCount / totalAll) * 100);
         progressItem.setProgress(pct);
         progressItem.setText(`已完成 ${completedCount} / ${totalAll} 个段落 (${pct}%)`);
         if (btnText) btnText.textContent = `翻译中 ${pct}%`;
 
-        // Pacing delay between batches
-        if (i + batchSize < paragraphsToTranslate.length) {
+        // Only pace when running single-file; with several in flight the
+        // requests already arrive spread out.
+        if (concurrency === 1 && batchIdx + 1 < batches.length) {
           await new Promise((r) => setTimeout(r, 600));
         }
-      }
+      });
 
       // Persist newly translated paragraphs to PDF folder cache!
       if (Object.keys(newlyTranslatedMap).length > 0) {

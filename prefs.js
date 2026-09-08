@@ -12,3 +12,4 @@ pref("extensions.zotero.reading-bilingual.fontSize", "0.95em");
 pref("extensions.zotero.reading-bilingual.lineHeight", "1.75");
 pref("extensions.zotero.reading-bilingual.borderStyle", "straight");
 pref("extensions.zotero.reading-bilingual.translateTables", true);
+pref("extensions.zotero.reading-bilingual.concurrency", 3);

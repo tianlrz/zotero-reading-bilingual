@@ -93,6 +93,7 @@
     const customModelInput = document.getElementById("reading-bilingual-pref-custom-model");
     const autoTransCheck = document.getElementById("reading-bilingual-pref-autotrans");
     const tablesCheck = document.getElementById("reading-bilingual-pref-tables");
+    const concurrencySelect = document.getElementById("reading-bilingual-pref-concurrency");
     const promptArea = document.getElementById("reading-bilingual-pref-prompt");
     const resetBtn = document.getElementById("reading-bilingual-pref-reset-prompt");
     const saveBtn = document.getElementById("reading-bilingual-pref-save");
@@ -225,6 +226,7 @@
 
     autoTransCheck.checked = plugin.getAutoTranslate();
     if (tablesCheck) tablesCheck.checked = plugin.getTranslateTables ? plugin.getTranslateTables() : true;
+    if (concurrencySelect && plugin.getConcurrency) concurrencySelect.value = String(plugin.getConcurrency());
     promptArea.value = plugin.getCustomPrompt();
     updateKeyStatus();
 
@@ -367,6 +369,7 @@
       const model = getSelectedModel();
       const auto = autoTransCheck.checked;
       if (tablesCheck && plugin.setTranslateTables) plugin.setTranslateTables(tablesCheck.checked);
+      if (concurrencySelect && plugin.setConcurrency) plugin.setConcurrency(concurrencySelect.value);
       const prompt = promptArea.value.trim();
 
       if (plugin.setProvider) plugin.setProvider(provider);
@@ -485,6 +488,11 @@
     autoTransCheck.addEventListener("command", saveAll);
     autoTransCheck.addEventListener("click", saveAll);
     autoTransCheck.addEventListener("change", saveAll);
+
+    if (concurrencySelect) {
+      concurrencySelect.addEventListener("change", saveAll);
+      concurrencySelect.addEventListener("command", saveAll);
+    }
 
     if (tablesCheck) {
       tablesCheck.addEventListener("command", saveAll);

@@ -74,6 +74,22 @@
 		<hbox align="center">
 			<checkbox id="reading-bilingual-pref-tables" label="翻译表格与图块（整张表作为一个整体翻译；关闭可节约 API 额度）"/>
 		</hbox>
+		<hbox align="center" style="gap: 12px; margin-top: 8px;">
+			<label value="并发请求数:" style="width: 95px;"/>
+			<html:select id="reading-bilingual-pref-concurrency"
+			             style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--material-panedivider, #ccc); font-size: 12.5px; background: var(--material-sidepane, #fff); color: inherit;">
+				<html:option value="1">1 (最慢最稳，逐个请求)</html:option>
+				<html:option value="2">2</html:option>
+				<html:option value="3">3 (推荐，速度与稳定兼顾 - 默认)</html:option>
+				<html:option value="4">4</html:option>
+				<html:option value="5">5 (较快，免费额度可能触发限流)</html:option>
+				<html:option value="6">6</html:option>
+				<html:option value="8">8 (最快，需要较高的接口速率上限)</html:option>
+			</html:select>
+		</hbox>
+		<html:div style="margin-left: 107px; font-size: 11px; color: var(--fill-secondary, #777);">
+			同时发出的翻译请求数量。调高可显著加快长文献，但超出服务商速率上限会让部分段落返回失败，届时再点一次按钮即可续翻。
+		</html:div>
 	</groupbox>
 
 	<!-- Appearance: Font & Frame Styling -->
