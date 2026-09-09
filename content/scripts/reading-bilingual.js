@@ -750,31 +750,26 @@ var ReadingBilingual = {
         display: flex !important;
         gap: 5px !important;
         opacity: 0 !important;
+        /* The container never intercepts the mouse, so the gaps between the
+           buttons stay transparent to text selection. Only the buttons
+           themselves are hot spots -- see .zrb-card-action-btn below. */
         pointer-events: none !important;
-        transition: opacity 0.18s ease-in-out !important;
-        /* No delay on the way out, so they disappear the moment you leave */
-        transition-delay: 0s !important;
+        transition: opacity 0.12s ease-in-out !important;
         z-index: 10 !important;
       }
-      /* Only reveal once the pointer has settled on the card. Without the
-         delay the buttons flashed in and out of every card the cursor crossed
-         while reading or scrolling. */
-      .zotero-bilingual-card:hover .zrb-card-actions {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        transition-delay: 0.45s !important;
-      }
-      /* Reaching for a button that is already showing keeps it showing */
+      /* The trigger is the buttons, not the card. Hovering a child that
+         accepts pointer events gives :hover to this container, so the group
+         appears only when the pointer is actually on it. Reveal is instant so
+         there is no window where an invisible button could be clicked. */
       .zrb-card-actions:hover {
         opacity: 1 !important;
-        pointer-events: auto !important;
-        transition-delay: 0s !important;
       }
       .zotero-bilingual-card.translating .zrb-card-actions,
       .zotero-bilingual-card.zrb-in-edit .zrb-card-actions {
         display: none !important;
       }
       .zrb-card-action-btn {
+        pointer-events: auto !important;
         background: var(--material-sidepane, #ffffff) !important;
         color: inherit !important;
         border: 1px solid rgba(0, 0, 0, 0.15) !important;
