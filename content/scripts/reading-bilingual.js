@@ -752,11 +752,23 @@ var ReadingBilingual = {
         opacity: 0 !important;
         pointer-events: none !important;
         transition: opacity 0.18s ease-in-out !important;
+        /* No delay on the way out, so they disappear the moment you leave */
+        transition-delay: 0s !important;
         z-index: 10 !important;
       }
+      /* Only reveal once the pointer has settled on the card. Without the
+         delay the buttons flashed in and out of every card the cursor crossed
+         while reading or scrolling. */
       .zotero-bilingual-card:hover .zrb-card-actions {
         opacity: 1 !important;
         pointer-events: auto !important;
+        transition-delay: 0.45s !important;
+      }
+      /* Reaching for a button that is already showing keeps it showing */
+      .zrb-card-actions:hover {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        transition-delay: 0s !important;
       }
       .zotero-bilingual-card.translating .zrb-card-actions,
       .zotero-bilingual-card.zrb-in-edit .zrb-card-actions {
