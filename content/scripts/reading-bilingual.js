@@ -32,6 +32,11 @@ var ReadingBilingual = {
   PREF_BORDER_STYLE: "extensions.zotero.reading-bilingual.borderStyle",
   PREF_TRANSLATE_TABLES: "extensions.zotero.reading-bilingual.translateTables",
   PREF_CONCURRENCY: "extensions.zotero.reading-bilingual.concurrency",
+  PREF_FALLBACK_MODELS: "extensions.zotero.reading-bilingual.fallbackModels",
+  // Lite tiers first: they carry the largest free daily allowances, so this
+  // walks *down* the ladder instead of jumping straight back to the newest and
+  // most expensive model the way the old hardcoded list did.
+  DEFAULT_FALLBACK_MODELS: "gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash",
   PREF_READER_PAGE_WIDTH: "extensions.zotero.reading-bilingual.readerPageWidth",
   PREF_READER_SCALE: "extensions.zotero.reading-bilingual.readerScale",
   DEFAULT_CONCURRENCY: 3,
@@ -388,6 +393,20 @@ var ReadingBilingual = {
 
   // How many API requests may be in flight at once. Higher is faster but more
   // likely to hit the provider's rate limit, which comes back as failed cards.
+  getFallbackModels() {
+    let raw = this.DEFAULT_FALLBACK_MODELS;
+    try {
+      const v = Zotero.Prefs.get(this.PREF_FALLBACK_MODELS, true);
+      if (typeof v === "string" && v.trim()) raw = v;
+    } catch (e) {}
+    return raw.split(",").map((m) => m.trim()).filter(Boolean);
+  },
+
+  setFallbackModels(v) {
+    const cleaned = String(v || "").split(",").map((m) => m.trim()).filter(Boolean).join(",");
+    Zotero.Prefs.set(this.PREF_FALLBACK_MODELS, cleaned || this.DEFAULT_FALLBACK_MODELS, true);
+  },
+
   getConcurrency() {
     try {
       const v = parseInt(Zotero.Prefs.get(this.PREF_CONCURRENCY, true), 10);
@@ -3368,8 +3387,7 @@ var ReadingBilingual = {
       prompt += `【P${i + 1}】\n${text}\n\n`;
     });
 
-    const modelsToTry = [targetModel, "gemini-flash-latest", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"];
-    const queue = [...new Set(modelsToTry)];
+    const queue = [...new Set([targetModel, ...this.getFallbackModels()])];
 
     let lastError = null;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -3396,6 +3414,12 @@ var ReadingBilingual = {
             const parts = data.candidates?.[0]?.content?.parts || [];
             const textPart = parts.find((p) => p.text) || parts[0];
             if (textPart && textPart.text) {
+              // Which model actually answered used to be invisible, so a silent
+              // fallback looked identical to the model you picked working fine.
+              if (m !== targetModel) {
+                Zotero.debug(`[ReadingBilingual] ${targetModel} unavailable, this batch was translated by ${m}`);
+              }
+              this._lastServingModel = m;
               return this.parseBatchedTranslations(textPart.text, paragraphsText.length);
             }
           } else {

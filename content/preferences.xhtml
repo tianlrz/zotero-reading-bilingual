@@ -68,6 +68,17 @@
 				            style="width: 320px; padding: 6px 10px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 6px; font-size: 12px; background: var(--material-sidepane, #fff); color: inherit;"/>
 			</html:div>
 		</vbox>
+		<vbox style="gap: 4px; margin-bottom: 10px;">
+			<hbox align="center" style="gap: 12px;">
+				<label value="限流降级链:" style="width: 95px;"/>
+				<html:input id="reading-bilingual-pref-fallback" type="text"
+				            placeholder="gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-3.8-flash"
+				            style="flex: 1; padding: 6px 10px; border: 1px solid var(--material-panedivider, #ccc); border-radius: 6px; font-size: 12px; font-family: monospace; background: var(--material-sidepane, #fff); color: inherit;"/>
+			</hbox>
+			<html:div style="margin-left: 107px; font-size: 11px; color: var(--fill-secondary, #777);">
+				主力模型被限流时按此顺序依次改用，英文逗号分隔。免费额度按模型分别计算，把额度大的 lite 型号排在前面可以逐个榨干。留空恢复默认。
+			</html:div>
+		</vbox>
 		<hbox align="center">
 			<checkbox id="reading-bilingual-pref-autotrans" label="进入阅读模式时自动翻译（本地已有缓存则秒级载入，不消耗 API 额度）"/>
 		</hbox>

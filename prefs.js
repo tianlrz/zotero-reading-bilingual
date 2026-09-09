@@ -13,5 +13,6 @@ pref("extensions.zotero.reading-bilingual.lineHeight", "1.75");
 pref("extensions.zotero.reading-bilingual.borderStyle", "straight");
 pref("extensions.zotero.reading-bilingual.translateTables", true);
 pref("extensions.zotero.reading-bilingual.concurrency", 3);
+pref("extensions.zotero.reading-bilingual.fallbackModels", "gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash");
 pref("extensions.zotero.reading-bilingual.readerPageWidth", "off");
 pref("extensions.zotero.reading-bilingual.readerScale", 0);

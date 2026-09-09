@@ -94,6 +94,7 @@
     const autoTransCheck = document.getElementById("reading-bilingual-pref-autotrans");
     const tablesCheck = document.getElementById("reading-bilingual-pref-tables");
     const concurrencySelect = document.getElementById("reading-bilingual-pref-concurrency");
+    const fallbackInput = document.getElementById("reading-bilingual-pref-fallback");
     const pageWidthSelect = document.getElementById("reading-bilingual-pref-pagewidth");
     const readerScaleSelect = document.getElementById("reading-bilingual-pref-readerscale");
     const promptArea = document.getElementById("reading-bilingual-pref-prompt");
@@ -229,6 +230,7 @@
     autoTransCheck.checked = plugin.getAutoTranslate();
     if (tablesCheck) tablesCheck.checked = plugin.getTranslateTables ? plugin.getTranslateTables() : true;
     if (concurrencySelect && plugin.getConcurrency) concurrencySelect.value = String(plugin.getConcurrency());
+    if (fallbackInput && plugin.getFallbackModels) fallbackInput.value = plugin.getFallbackModels().join(",");
     if (pageWidthSelect && plugin.getReaderPageWidth) pageWidthSelect.value = plugin.getReaderPageWidth();
     if (readerScaleSelect && plugin.getReaderScale) readerScaleSelect.value = String(plugin.getReaderScale());
     promptArea.value = plugin.getCustomPrompt();
@@ -374,6 +376,7 @@
       const auto = autoTransCheck.checked;
       if (tablesCheck && plugin.setTranslateTables) plugin.setTranslateTables(tablesCheck.checked);
       if (concurrencySelect && plugin.setConcurrency) plugin.setConcurrency(concurrencySelect.value);
+      if (fallbackInput && plugin.setFallbackModels) plugin.setFallbackModels(fallbackInput.value);
       if (pageWidthSelect && plugin.setReaderPageWidth) plugin.setReaderPageWidth(pageWidthSelect.value);
       if (readerScaleSelect && plugin.setReaderScale) plugin.setReaderScale(readerScaleSelect.value);
       const prompt = promptArea.value.trim();
@@ -494,6 +497,11 @@
     autoTransCheck.addEventListener("command", saveAll);
     autoTransCheck.addEventListener("click", saveAll);
     autoTransCheck.addEventListener("change", saveAll);
+
+    if (fallbackInput) {
+      fallbackInput.addEventListener("change", saveAll);
+      fallbackInput.addEventListener("blur", saveAll);
+    }
 
     if (concurrencySelect) {
       concurrencySelect.addEventListener("change", saveAll);
