@@ -420,6 +420,19 @@ var ReadingBilingual = {
     Zotero.Prefs.set(this.PREF_CONCURRENCY, n, true);
   },
 
+  // 各 OpenAI 兼容服务商在 /chat/completions 请求体上的差别集中在这里。
+  // 没有差异的服务商返回空对象，请求体与官方原版逐字节一致。
+  _providerExtraBody() {
+    const provider = (this.getProvider() || "").toLowerCase();
+    const baseUrl = (this.getBaseUrl() || "").toLowerCase();
+    // DeepSeek：reasoning_effort 默认是 high（思考模式默认开启），思考模式下
+    // max_tokens 未设置时默认 64K，翻译任务会为看不见的推理付出大量输出费用。
+    if (provider === "deepseek" || baseUrl.includes("deepseek.com")) {
+      return { reasoning_effort: "none" };
+    }
+    return {};
+  },
+
   // Reading-mode page width. "off" leaves Zotero's own value alone.
   getReaderPageWidth() {
     try {
@@ -3474,7 +3487,8 @@ var ReadingBilingual = {
         { role: "system", content: this.getCustomPrompt().trim() },
         { role: "user", content: userPrompt }
       ],
-      temperature: 0.3
+      temperature: 0.3,
+      ...this._providerExtraBody()
     };
 
     let lastError = null;
@@ -3606,7 +3620,8 @@ var ReadingBilingual = {
             body: JSON.stringify({
               model: model || "deepseek-chat",
               messages: messages,
-              temperature: 0.3
+              temperature: 0.3,
+              ...this._providerExtraBody()
             })
           });
           if (resp.ok) {
