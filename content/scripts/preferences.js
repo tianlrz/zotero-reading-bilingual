@@ -276,16 +276,16 @@
       }
       previewCard.style.fontFamily = fontStack;
 
-      const frameVal = frameSelect ? frameSelect.value : "crimson";
+      const frameVal = frameSelect ? frameSelect.value : "indigo";
       if (customColorRow) {
         customColorRow.style.display = (frameVal === "custom") ? "flex" : "none";
       }
-      let color = FRAME_COLOR_MAP[frameVal] || "#a8202b";
+      let color = FRAME_COLOR_MAP[frameVal] || "#6366f1";
       if (frameVal === "custom") {
         color = (customColorInput?.value || customColorText?.value || "#a8202b").trim();
       }
       previewCard.style.borderLeftColor = color;
-      const borderVal = borderStyleSelect ? borderStyleSelect.value : "straight";
+      const borderVal = borderStyleSelect ? borderStyleSelect.value : "none";
       if (borderVal === "straight") {
         previewCard.style.borderLeftWidth = "3.5px";
         previewCard.style.borderLeftStyle = "solid";
@@ -315,7 +315,7 @@
         previewCard.style.borderRadius = "6px";
       }
 
-      const bgVal = cardbgSelect ? cardbgSelect.value : "transparent";
+      const bgVal = cardbgSelect ? cardbgSelect.value : "tint";
       if (bgVal === "transparent") {
         previewCard.style.backgroundColor = "transparent";
         previewCard.style.boxShadow = "none";

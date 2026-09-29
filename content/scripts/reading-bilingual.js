@@ -11,6 +11,8 @@ var ReadingBilingual = {
   // tab by a previous load can be told apart from what this load injected
   sessionId: String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8),
   _observers: [],
+  _autoTranslateTimers: new Map(),
+  _autoTranslatingReaders: new WeakSet(),
   // One-shot marker per reading-mode view, so the defaults are applied when a
   // document opens and never fight a manual change afterwards
   _appearanceApplied: new WeakSet(),
@@ -42,18 +44,17 @@ var ReadingBilingual = {
   DEFAULT_CONCURRENCY: 3,
   DEFAULT_PROVIDER: "gemini",
   DEFAULT_MODEL: "gemini-flash-latest",
-  DEFAULT_BORDER_STYLE: "straight",
-  DEFAULT_PROMPT: `你是一名顶尖的计算机科学与人工智能领域资深学者兼专业学术译者。请将以下按标号分隔的英文论文段落翻译为地道、严谨、纯正的高质量学术中文。
+  DEFAULT_BORDER_STYLE: "none",
+  DEFAULT_PROMPT: `你是计算机科学与人工智能领域的学术译者。将下列英文论文段落译为学术中文。
 
-【核心翻译规范】：
-1. 语言自然学术：行文必须符合中文学术论文规范，文笔凝练严谨，逻辑连贯，杜绝机械生硬的逐字机翻腔。
-2. 术语地道本地化：学术词汇请采用学界通用的自然表达。例如将 first-class components 译为“核心组件”或“核心要素”（切忌死板直译为“一等公民”）。
-3. 【严格禁止中文后用括号附带英文】：严禁在中文翻译后用括号补充英文原文（例如严禁输出“基座模型 (foundation models)”或“技能（skills）”，直接输出“基座模型”、“技能”即可）。
-4. 专有名词保留：仅行业公认通用的英文缩写与专有名词保持原样（如 LLM、Agent、AI、GPU、API、Transformer、GPT、PyTorch 等）。
-5. 保持数学符号、公式、参数变量名及代码标记原样不变。
+规则：
+1. 译文须为通顺的中文学术书面语，按中文语序重组，不保留英文句式。
+2. 术语用学界通用译法。例：first-class components 译为"核心组件"，不译为"一等公民"。
+3. 中文后不得用括号附注英文。禁止"基座模型 (foundation models)""技能（skills）"，直接写"基座模型""技能"。
+4. 这些词保持英文原样且不加中文译名：LLM、Agent、AI、GPU、API、Transformer、GPT、PyTorch 及同类公认缩写。本条优先于第 3 条。
+5. 数学符号、公式、变量名、代码标记、引用编号原样保留。
 
-【输出格式要求】：
-严格按【P1】、【P2】、【P3】...标号对应输出各段纯中文译文，不要遗漏标号，不要输出任何额外的前言、开场白或分析说明。`,
+输出：按【P1】【P2】…与输入逐段一一对应，不得遗漏或合并。每段译文必须写在同一行内，中途不得换行。不输出任何说明文字。`,
 
   init(rootURI) {
     this.rootURI = rootURI;
@@ -452,14 +453,21 @@ var ReadingBilingual = {
   // kept for the open document. So apply the user's choice once per view.
   sweepReaderAppearance() {
     try {
-      if (this.getReaderPageWidth() === "off" && !this.getReaderScale()) return;
+      const needsAppearance = this.getReaderPageWidth() !== "off" || !!this.getReaderScale();
+      const needsAutoTranslate = this.getAutoTranslate();
+      if (!needsAppearance && !needsAutoTranslate) return;
       if (!Zotero.Reader || !Zotero.Reader._readers) return;
       for (const reader of Object.values(Zotero.Reader._readers)) {
         try {
-          const view = (reader?._internalReader || reader)?._primarySDTView;
-          if (view && !this._appearanceApplied.has(view)) {
-            this.applyReaderAppearanceDefaults(reader);
+          if (needsAppearance) {
+            const view = (reader?._internalReader || reader)?._primarySDTView;
+            if (view && !this._appearanceApplied.has(view)) {
+              this.applyReaderAppearanceDefaults(reader);
+            }
           }
+          // The SDT iframe can finish loading after the outer reader stops
+          // mutating, so the toolbar observer alone cannot start auto mode.
+          if (needsAutoTranslate) this.scheduleAutoTranslate(reader);
         } catch (e) {}
       }
     } catch (e) {}
@@ -575,11 +583,11 @@ var ReadingBilingual = {
       const v = Zotero.Prefs.get(this.PREF_FRAME_THEME, true);
       if (v) return v;
     } catch (e) {}
-    return "crimson";
+    return "indigo";
   },
 
   setFrameTheme(v) {
-    Zotero.Prefs.set(this.PREF_FRAME_THEME, v || "crimson", true);
+    Zotero.Prefs.set(this.PREF_FRAME_THEME, v || "indigo", true);
   },
 
   getCustomColor() {
@@ -599,11 +607,11 @@ var ReadingBilingual = {
       const v = Zotero.Prefs.get(this.PREF_CARD_BG, true);
       if (v) return v;
     } catch (e) {}
-    return "transparent";
+    return "tint";
   },
 
   setCardBgMode(v) {
-    Zotero.Prefs.set(this.PREF_CARD_BG, v || "transparent", true);
+    Zotero.Prefs.set(this.PREF_CARD_BG, v || "tint", true);
   },
 
   getFontSize() {
@@ -1433,10 +1441,8 @@ var ReadingBilingual = {
       this._appearanceSweep = null;
     }
 
-    if (this._autoTranslateTimer) {
-      clearTimeout(this._autoTranslateTimer);
-      this._autoTranslateTimer = null;
-    }
+    for (const timer of this._autoTranslateTimers.values()) clearTimeout(timer);
+    this._autoTranslateTimers.clear();
 
     try {
       if (this._tabObserver && typeof Zotero_Tabs !== "undefined" && Zotero_Tabs.removeObserver) {
@@ -1813,28 +1819,34 @@ var ReadingBilingual = {
   },
 
   scheduleAutoTranslate(reader) {
-    if (!this.getAutoTranslate()) return;
-    if (this._autoTranslateTimer) clearTimeout(this._autoTranslateTimer);
+    if (!reader || !this.getAutoTranslate()) return;
+    if (this._autoTranslateTimers.has(reader) || this._autoTranslatingReaders.has(reader)) return;
 
-    this._autoTranslateTimer = setTimeout(async () => {
-      const internal = reader._internalReader || reader;
-      const isSDT = !!(
-        internal._primarySDTView ||
-        (typeof internal._getActiveView === "function" && internal._getActiveView(true)?._iframeDocument?.querySelector("#sdt-content"))
-      );
-      if (!isSDT) return;
+    const timer = setTimeout(async () => {
+      this._autoTranslateTimers.delete(reader);
+      if (!this.getAutoTranslate() || this._autoTranslatingReaders.has(reader)) return;
+      try {
+        const internal = reader._internalReader || reader;
+        const isSDT = !!(
+          internal._primarySDTView ||
+          (typeof internal._getActiveView === "function" && internal._getActiveView(true)?._iframeDocument?.querySelector("#sdt-content"))
+        );
+        if (!isSDT) return;
 
-      const contentDoc = this.getRealContentDoc(reader);
-      if (!contentDoc) return;
+        const contentDoc = this.getRealContentDoc(reader);
+        if (!contentDoc || contentDoc.querySelector(".zotero-bilingual-card")) return;
+        if (!contentDoc.querySelector("#sdt-content p")) return;
 
-      // Avoid duplicate run if cards already exist or in progress
-      if (contentDoc.querySelector(".zotero-bilingual-card")) return;
-      const paragraphs = contentDoc.querySelectorAll("#sdt-content p, #sdt-content > p");
-      if (paragraphs.length === 0) return;
-
-      Zotero.debug("[ReadingBilingual] Auto-translating reading mode...");
-      await this.translateReader(reader, contentDoc, true /* isAuto */);
+        this._autoTranslatingReaders.add(reader);
+        Zotero.debug("[ReadingBilingual] Auto-translating reading mode...");
+        await this.translateReader(reader, contentDoc, true /* isAuto */);
+      } catch (e) {
+        Zotero.logError(e);
+      } finally {
+        this._autoTranslatingReaders.delete(reader);
+      }
     }, 450);
+    this._autoTranslateTimers.set(reader, timer);
   },
 
   // Active Reader Detection with robust multi-tab & multi-window support
@@ -2239,7 +2251,7 @@ var ReadingBilingual = {
   },
 
   // Toggle visibility of existing translated cards (Cmd/Ctrl+Shift+H)
-  toggleVisibility(targetReader = null, win = null) {
+  async toggleVisibility(targetReader = null, win = null) {
     const activeReader = targetReader || this.getActiveReader(win);
     if (!activeReader) {
       Services.prompt.alert(null, "沉浸式双语", "请先在 Zotero 中打开文献阅读界面。");
@@ -2249,7 +2261,14 @@ var ReadingBilingual = {
     if (!contentDoc) return;
     const cards = contentDoc.querySelectorAll(".zotero-bilingual-card");
     if (cards.length === 0) {
-      Services.prompt.alert(null, "沉浸式双语", "当前页面暂无译文可供切换显示。");
+      // A freshly opened reader has no DOM cards yet, even when this PDF has
+      // a complete translation on disk. Restore it before reporting "none".
+      const cache = await this.loadCache(activeReader);
+      if (Object.keys(cache).length > 0) {
+        await this.translateActiveReader(activeReader, win);
+      } else {
+        Services.prompt.alert(null, "沉浸式双语", "当前页面暂无译文可供切换显示。");
+      }
       return;
     }
     const isCurrentlyHidden = cards[0].classList.contains("zotero-bilingual-hidden");
