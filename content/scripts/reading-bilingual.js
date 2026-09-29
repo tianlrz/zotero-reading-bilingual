@@ -3193,13 +3193,17 @@ var ReadingBilingual = {
 
     let cachedCount = 0;
     let paragraphsToTranslate = [];
+    // Reading innerText after inserting each card forces the browser to lay
+    // out the growing document again. Capture every source paragraph before
+    // the first cache card changes the DOM.
+    const paragraphText = new Map(paragraphs.map((p) => [p, (p.innerText || "").trim()]));
 
     // 2. CACHE HANDLING:
     if (!forceReTranslate) {
       // Load from local cache first to avoid consuming API quota!
       const localCache = await this.loadCache(reader);
       paragraphs.forEach((p) => {
-        const text = p.innerText.trim();
+        const text = paragraphText.get(p);
         if (localCache[text]) {
           // Cache hit! Instant injection with 0 API cost
           const zh = this.cleanTypography(localCache[text]);
@@ -3273,7 +3277,7 @@ var ReadingBilingual = {
         const batchResults = {};
         const placeholders = batch.map((p) => {
           const pLabel = provider === "gemini" ? "Gemini" : provider;
-          const origText = p.innerText.trim();
+          const origText = paragraphText.get(p);
           const card = this.createCardElement(reader, doc, origText, `正在调用 ${pLabel} 翻译…`, true);
           insertCard(p, card);
           return { element: p, card: card, text: origText };
