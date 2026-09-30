@@ -769,6 +769,65 @@ var ReadingBilingual = {
       .zrb-card-content {
         display: block !important;
         width: 100% !important;
+        white-space: pre-wrap !important;
+      }
+      .zrb-toc-zh, .zotero-bilingual-roadmap-lead, .zotero-bilingual-roadmap-item {
+        white-space: pre-wrap !important;
+      }
+      .zotero-bilingual-card.zrb-in-edit .zrb-card-content {
+        display: none !important;
+      }
+      .zotero-bilingual-card .zrb-rich-text {
+        white-space: normal !important;
+      }
+      .zrb-rich-text p, .zrb-rich-text li, .zrb-rich-text blockquote,
+      .zrb-rich-text h1, .zrb-rich-text h2, .zrb-rich-text h3,
+      .zrb-rich-text h4, .zrb-rich-text h5, .zrb-rich-text h6 {
+        font-family: inherit !important;
+        font-size: inherit !important;
+        line-height: inherit !important;
+        color: inherit !important;
+        text-indent: 0 !important;
+        white-space: normal !important;
+        margin: 0 0 0.6em !important;
+      }
+      .zrb-rich-text > :last-child {
+        margin-bottom: 0 !important;
+      }
+      .zrb-rich-text ul, .zrb-rich-text ol {
+        padding-left: 1.6em !important;
+        margin: 0.4em 0 !important;
+      }
+      .zrb-rich-text blockquote {
+        border-left: 2px solid currentColor !important;
+        padding-left: 0.8em !important;
+      }
+      .zrb-rich-text pre {
+        white-space: pre-wrap !important;
+        padding: 0.6em !important;
+        background: rgba(127,127,127,0.08) !important;
+        border-radius: 4px !important;
+      }
+      .zrb-rich-text code {
+        font-family: ui-monospace, Menlo, Consolas, monospace !important;
+        font-size: 0.9em !important;
+      }
+      .zrb-rich-text table {
+        border-collapse: collapse !important;
+        width: 100% !important;
+        margin: 0.5em 0 !important;
+      }
+      .zrb-rich-text th, .zrb-rich-text td {
+        border: 1px solid rgba(127,127,127,0.3) !important;
+        padding: 0.3em 0.5em !important;
+      }
+      .zrb-rich-text .katex-display {
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: 0.2em 0 !important;
+      }
+      .zrb-rich-text .katex {
+        text-align: initial;
       }
       .zrb-card-actions {
         position: absolute !important;
@@ -933,7 +992,7 @@ var ReadingBilingual = {
         color: var(--fill-secondary, #666) !important;
         font-style: italic !important;
       }
-      .zotero-bilingual-table-card .zrb-card-content {
+      .zotero-bilingual-table-card .zrb-card-content:not(.zrb-rich-text) {
         white-space: pre-wrap !important;
         font-variant-numeric: tabular-nums !important;
       }
@@ -1095,15 +1154,19 @@ var ReadingBilingual = {
 
   cleanTypography(text) {
     if (!text) return "";
+    // Formatting cleanup must not change TeX, code indentation, or Markdown
+    // hard breaks. Plain prose cleanup is restricted to horizontal whitespace.
+    text = text.replace(/\r\n?/g, "\n");
+    if (ZRBTranslationRenderer.hasFormatting(text)) return text.trim();
     return text
       // Replace multi-spaces / tabs with single space
       .replace(/[ \t]+/g, " ")
       // Remove spaces between Chinese characters
-      .replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, "$1$2")
+      .replace(/([\u4e00-\u9fa5])[ \t]+([\u4e00-\u9fa5])/g, "$1$2")
       // Remove spaces before Chinese closing punctuation
-      .replace(/\s+([，。！？；：、）》】”’%])/g, "$1")
+      .replace(/[ \t]+([，。！？；：、）》】”’%])/g, "$1")
       // Remove spaces after Chinese opening punctuation
-      .replace(/([（《【“‘])\s+/g, "$1")
+      .replace(/([（《【“‘])[ \t]+/g, "$1")
       // Ensure clean single space between Chinese and English / Numbers
       .replace(/([\u4e00-\u9fa5])([a-zA-Z0-9])/g, "$1 $2")
       .replace(/([a-zA-Z0-9])([\u4e00-\u9fa5])/g, "$1 $2")
@@ -1464,6 +1527,12 @@ var ReadingBilingual = {
             if (btn) btn.remove();
             const style = doc.getElementById("zotero-reading-bilingual-btn-style");
             if (style) style.remove();
+            const contentDoc = this.getRealContentDoc(reader);
+            if (contentDoc) {
+              contentDoc.querySelectorAll(".zotero-bilingual-card, .zotero-bilingual-ref-notice").forEach((card) => card.remove());
+              contentDoc.getElementById("zotero-bilingual-style")?.remove();
+              contentDoc.getElementById("zrb-katex-style")?.remove();
+            }
           } catch (e) {}
         }
       }
@@ -2296,7 +2365,7 @@ var ReadingBilingual = {
 
     const content = doc.createElement("div");
     content.className = "zrb-card-content";
-    content.textContent = zhText || (isTranslating ? "正在翻译…" : "");
+    this.setTranslationContent(content, zhText || (isTranslating ? "正在翻译…" : ""), isTranslating);
     card.appendChild(content);
 
     const actions = doc.createElement("div");
@@ -2332,6 +2401,10 @@ var ReadingBilingual = {
     return card;
   },
 
+  setTranslationContent(content, text, plain = false) {
+    ZRBTranslationRenderer.renderInto(content, text, { plain });
+  },
+
   attachCardActionHandlers(card, reader, doc, origText) {
     if (!card || card._zrbHandlersAttached) return;
     card._zrbHandlersAttached = true;
@@ -2340,7 +2413,7 @@ var ReadingBilingual = {
       if (card.classList.contains("zrb-in-edit")) return;
       card.classList.add("zrb-in-edit");
       const contentEl = card.querySelector(".zrb-card-content");
-      const currentZh = contentEl ? contentEl.textContent.trim() : card.textContent.trim();
+      const currentZh = contentEl ? ZRBTranslationRenderer.getSource(contentEl).trim() : card.textContent.trim();
 
       if (contentEl) contentEl.style.display = "none";
       const actionsEl = card.querySelector(".zrb-card-actions");
@@ -2384,7 +2457,7 @@ var ReadingBilingual = {
         if (saved) {
           const newZh = textarea.value.trim();
           if (newZh && contentEl) {
-            contentEl.textContent = newZh;
+            this.setTranslationContent(contentEl, newZh);
             const key = card.dataset.origText || origText;
             if (key) {
               await this.saveCache(reader, { [key]: newZh });
@@ -2441,7 +2514,7 @@ var ReadingBilingual = {
       copyBtn.onclick = (e) => {
         e.stopPropagation();
         const cEl = card.querySelector(".zrb-card-content");
-        const textToCopy = cEl ? cEl.textContent.trim() : card.textContent.trim();
+        const textToCopy = cEl ? ZRBTranslationRenderer.getSource(cEl).trim() : card.textContent.trim();
         if (!textToCopy) return;
 
         const fallbackCopy = () => {
@@ -2652,7 +2725,7 @@ var ReadingBilingual = {
 
       placeholder.classList.remove("translating");
       const contentEl = placeholder.querySelector(".zrb-card-content");
-      if (contentEl) contentEl.textContent = cleanResult;
+      if (contentEl) this.setTranslationContent(contentEl, cleanResult);
       placeholder.dataset.origText = selectedText;
 
       this.attachCardActionHandlers(placeholder, reader, contentDoc, selectedText);
@@ -2662,7 +2735,7 @@ var ReadingBilingual = {
       placeholder.classList.remove("translating");
       placeholder.style.borderLeftColor = "#ef4444";
       const contentEl = placeholder.querySelector(".zrb-card-content");
-      if (contentEl) contentEl.textContent = `[翻译失败: ${err.message}]`;
+      if (contentEl) this.setTranslationContent(contentEl, `[翻译失败: ${err.message}]`, true);
       this.attachCardActionHandlers(placeholder, reader, contentDoc, selectedText);
     }
   },
@@ -2720,7 +2793,7 @@ var ReadingBilingual = {
       isResume = existing.length > 0;
       existing.forEach((card) => {
         if (card.classList.contains("zotero-bilingual-toc-card")) return;
-        const body = (card.querySelector(".zrb-card-content")?.textContent || card.textContent || "").trim();
+        const body = (ZRBTranslationRenderer.getSource(card.querySelector(".zrb-card-content")) || card.textContent || "").trim();
         const unfinished = card.classList.contains("translating") ||
                            /^\[(?:翻译失败|译文解析空|表格翻译失败|学术目录整体翻译失败)/.test(body) ||
                            body.startsWith("正在");
@@ -3299,7 +3372,7 @@ var ReadingBilingual = {
               const card = placeholders[idx].card;
               card.classList.remove("translating");
               const contentEl = card.querySelector(".zrb-card-content");
-              if (contentEl) contentEl.textContent = textResult;
+              if (contentEl) this.setTranslationContent(contentEl, textResult);
               else card.textContent = textResult;
               this.attachCardActionHandlers(card, reader, doc, placeholders[idx].text);
               newlyTranslatedMap[placeholders[idx].text] = textResult;
@@ -3321,7 +3394,7 @@ var ReadingBilingual = {
             card.style.borderLeftColor = "#ef4444";
             const contentEl = card.querySelector(".zrb-card-content");
             const errMsg = `[翻译失败: ${err.message}]`;
-            if (contentEl) contentEl.textContent = errMsg;
+            if (contentEl) this.setTranslationContent(contentEl, errMsg, true);
             else card.textContent = errMsg;
             this.attachCardActionHandlers(card, reader, doc, item.text);
           });
@@ -3703,7 +3776,7 @@ ${text}
       if (!zh) throw new Error("译文为空");
       card.classList.remove("translating");
       const contentEl = card.querySelector(".zrb-card-content");
-      if (contentEl) contentEl.textContent = zh;
+      if (contentEl) this.setTranslationContent(contentEl, zh);
       this.attachCardActionHandlers(card, reader, doc, text);
       await this.saveCache(reader, { [text]: zh });
     } catch (err) {
@@ -3711,7 +3784,7 @@ ${text}
       card.classList.remove("translating");
       card.style.borderLeftColor = "#ef4444";
       const contentEl = card.querySelector(".zrb-card-content");
-      if (contentEl) contentEl.textContent = `[表格翻译失败: ${err.message}]`;
+      if (contentEl) this.setTranslationContent(contentEl, `[表格翻译失败: ${err.message}]`, true);
       this.attachCardActionHandlers(card, reader, doc, text);
     }
   },
@@ -3833,6 +3906,12 @@ ${block.items.map((it, idx) => `【T${idx + 1}】${it.text}`).join("\n")}
         ${rowsHtml}
       </div>
     `;
+
+    const zhTitles = card.querySelectorAll(".zrb-toc-zh");
+    block.items.forEach((it, idx) => {
+      const zh = data.itemsZh?.[idx] || it.text;
+      ZRBTranslationRenderer.renderInto(zhTitles[idx], this.parseTocRow(it.text, zh).zhTitle, { inline: true });
+    });
 
     // Add action buttons (Copy & Delete)
     const actions = doc.createElement("div");
@@ -4022,6 +4101,11 @@ ${block.items.map((it, idx) => `【分项${idx + 1}】${it.text}`).join("\n")}
         ${itemsHtml}
       </div>
     `;
+
+    ZRBTranslationRenderer.renderInto(card.querySelector(".zotero-bilingual-roadmap-lead"), leadZh);
+    card.querySelectorAll(".zotero-bilingual-roadmap-item").forEach((item) => {
+      ZRBTranslationRenderer.renderInto(item, item.textContent);
+    });
 
     const actions = doc.createElement("div");
     actions.className = "zrb-card-actions";

@@ -18,12 +18,21 @@ async function startup(data, reason) {
   var manifestURI = Services.io.newURI(rootURI + "manifest.json");
   chromeHandle = aomStartup.registerChrome(manifestURI, [
     ["content", "readingbilingual", rootURI + "content/"],
+    // Reader frames use a content principal. Expose only the static renderer
+    // assets so their stylesheet and font URLs can load inside those frames.
+    ["content", "readingbilingual-render", rootURI + "content/vendor/", "contentaccessible=yes"],
   ]);
 
   const ctx = {
     rootURI,
   };
   ctx._globalThis = ctx;
+
+  Services.scriptloader.loadSubScript(
+    `${rootURI}content/scripts/translation-renderer.js`,
+    ctx
+  );
+  ctx.ZRBTranslationRenderer.init(rootURI);
 
   Services.scriptloader.loadSubScript(
     `${rootURI}content/scripts/reading-bilingual.js`,
@@ -81,6 +90,7 @@ function shutdown(data, reason) {
   if (rootURI) {
     try {
       Cu.unload(`${rootURI}content/scripts/reading-bilingual.js`);
+      Cu.unload(`${rootURI}content/scripts/translation-renderer.js`);
     } catch (e) {}
   }
 
