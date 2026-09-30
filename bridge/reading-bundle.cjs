@@ -146,14 +146,14 @@ async function importPDF(pdfPath, metadata = {}) {
 }
 
 function bundleToMarkdown(bundle, bundlePath) {
-  const lines = ["---", "title: " + JSON.stringify(bundle.title), "zrb_bundle: " + JSON.stringify(bundlePath), "zotero: " + JSON.stringify(bundle.zoteroURI), "---", "", "# " + bundle.title, "", `[在 Zotero 中打开](${bundle.zoteroURI})`, ""];
+  const lines = ["---", "title: " + JSON.stringify(bundle.title), "zrb_bundle: " + JSON.stringify(bundlePath), "zotero: " + JSON.stringify(bundle.zoteroURI), "cssclasses: [zrb-native-reading]", "---", "", "# " + bundle.title, "", `[在 Zotero 中打开](${bundle.zoteroURI})`, ""];
   for (const block of bundle.blocks) {
     lines.push(`<!-- ${block.id}; PDF ${block.pages.join(",")} -->`);
     if (block.type === "heading") lines.push("#".repeat(block.level) + " " + block.markdown);
     else if (block.crops.length) {
       for (const crop of block.crops) lines.push(crop.image ? `![[${crop.image}]]` : `> ${block.type === "math" ? "公式" : "图表"}：原 PDF 第 ${crop.page} 页`);
     } else lines.push(block.markdown);
-    if (block.translated) lines.push("", block.translated);
+    if (block.translated) lines.push("", "> [!zrb-translation] 译文", ...block.translated.split("\n").map(line => "> " + line));
     lines.push("");
   }
   return lines.join("\n");

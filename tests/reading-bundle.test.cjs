@@ -64,7 +64,8 @@ test("Markdown export is searchable, embeds crop files and links back to the sou
   const bundle = buildReadingBundle(structure([paragraph("Source text"), image]), { "Source text": "$L_i$\n下一行" }, { attachmentKey: "ABCDEFGH" });
   bundle.blocks[1].crops[0].image = "Zotero 阅读/images/chart.png";
   const markdown = bundleToMarkdown(bundle, "Zotero 阅读/paper.zrb.json");
-  assert.ok(markdown.includes("$L_i$\n下一行"));
+  assert.ok(markdown.includes("> $L_i$\n> 下一行"));
+  assert.ok(markdown.includes("> [!zrb-translation] 译文"));
   assert.ok(markdown.includes("![[Zotero 阅读/images/chart.png]]"));
   assert.ok(markdown.includes("zotero://select/library/items/ABCDEFGH"));
   assert.equal(validateBundle(bundle), bundle);

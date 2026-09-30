@@ -1,0 +1,377 @@
+{
+  "environment": {
+    "platform": "darwin",
+    "totalRAM": 17179869184,
+    "screen": [
+      1200,
+      900
+    ],
+    "backgroundThrottling": false,
+    "metric": "process RSS in MiB, shared pages may be counted twice; not Activity Monitor physical footprint",
+    "scrolling": "36 viewport-sized steps down/up per cycle, 3 cycles per phase",
+    "fixture": "41-page paper: 425 reading blocks, 232 translated blocks, 20 image/math crops",
+    "obsidianVersion": "1.13.7"
+  },
+  "runs": [
+    {
+      "kind": "js",
+      "round": 1,
+      "stats": {
+        "blocks": 425,
+        "translated": 232,
+        "pages": 41,
+        "figures": 20
+      },
+      "measurements": [
+        {
+          "phase": "empty",
+          "main": 174.59375,
+          "renderer": 283.265625,
+          "gpu": 96.1875,
+          "other": 52.9375,
+          "total": 606.984375,
+          "nodes": 743,
+          "images": 0,
+          "canvases": 0,
+          "heap": 32330496,
+          "visibility": "visible"
+        },
+        {
+          "phase": "body-open",
+          "main": 175.109375,
+          "renderer": 338.84375,
+          "gpu": 99.46875,
+          "other": 52.9375,
+          "total": 666.359375,
+          "nodes": 3706,
+          "images": 20,
+          "canvases": 1,
+          "heap": 31631808,
+          "visibility": "visible"
+        },
+        {
+          "phase": "body-scrolled",
+          "main": 176.765625,
+          "renderer": 384.6875,
+          "gpu": 110.53125,
+          "other": 52.953125,
+          "total": 724.9375,
+          "nodes": 3706,
+          "images": 20,
+          "canvases": 1,
+          "heap": 31993835,
+          "visibility": "visible"
+        },
+        {
+          "phase": "split-open",
+          "main": 176.84375,
+          "renderer": 478.40625,
+          "gpu": 155.4375,
+          "other": 52.953125,
+          "total": 863.640625,
+          "nodes": 3707,
+          "images": 20,
+          "canvases": 1,
+          "heap": 40841369,
+          "visibility": "visible"
+        },
+        {
+          "phase": "split-scrolled",
+          "main": 174.953125,
+          "renderer": 609.28125,
+          "gpu": 178.125,
+          "other": 52.96875,
+          "total": 1015.328125,
+          "nodes": 3707,
+          "images": 20,
+          "canvases": 1,
+          "heap": 32665464,
+          "visibility": "visible"
+        },
+        {
+          "phase": "pdf-closed",
+          "main": 174.953125,
+          "renderer": 593.15625,
+          "gpu": 145.46875,
+          "other": 52.96875,
+          "total": 966.546875,
+          "nodes": 3706,
+          "images": 20,
+          "canvases": 1,
+          "heap": 32690693,
+          "visibility": "visible"
+        }
+      ]
+    },
+    {
+      "kind": "native",
+      "round": 1,
+      "stats": {
+        "blocks": 425,
+        "translated": 232,
+        "pages": 41,
+        "figures": 20
+      },
+      "measurements": [
+        {
+          "phase": "empty",
+          "main": 175.4375,
+          "renderer": 283.890625,
+          "gpu": 97.953125,
+          "other": 52.890625,
+          "total": 610.1875,
+          "nodes": 743,
+          "images": 0,
+          "canvases": 0,
+          "heap": 31312956,
+          "visibility": "visible"
+        },
+        {
+          "phase": "body-open",
+          "main": 185,
+          "renderer": 403.421875,
+          "gpu": 104.71875,
+          "other": 52.921875,
+          "total": 746.0625,
+          "nodes": 1163,
+          "images": 65,
+          "canvases": 0,
+          "heap": 43111627,
+          "visibility": "visible"
+        },
+        {
+          "phase": "body-scrolled",
+          "main": 184.890625,
+          "renderer": 453.484375,
+          "gpu": 122.25,
+          "other": 52.953125,
+          "total": 813.578125,
+          "nodes": 1163,
+          "images": 65,
+          "canvases": 0,
+          "heap": 43644741,
+          "visibility": "visible"
+        },
+        {
+          "phase": "split-open",
+          "main": 185.46875,
+          "renderer": 612.90625,
+          "gpu": 160.71875,
+          "other": 52.953125,
+          "total": 1012.046875,
+          "nodes": 2402,
+          "images": 65,
+          "canvases": 4,
+          "heap": 38367867,
+          "visibility": "visible"
+        },
+        {
+          "phase": "split-scrolled",
+          "main": 183.71875,
+          "renderer": 749.65625,
+          "gpu": 200.25,
+          "other": 52.96875,
+          "total": 1186.59375,
+          "nodes": 4083,
+          "images": 65,
+          "canvases": 11,
+          "heap": 52917790,
+          "visibility": "visible"
+        },
+        {
+          "phase": "pdf-closed",
+          "main": 184.015625,
+          "renderer": 685.9375,
+          "gpu": 137.609375,
+          "other": 52.96875,
+          "total": 1060.53125,
+          "nodes": 1165,
+          "images": 65,
+          "canvases": 0,
+          "heap": 55402025,
+          "visibility": "visible"
+        }
+      ]
+    },
+    {
+      "kind": "native",
+      "round": 2,
+      "stats": {
+        "blocks": 425,
+        "translated": 232,
+        "pages": 41,
+        "figures": 20
+      },
+      "measurements": [
+        {
+          "phase": "empty",
+          "main": 174.96875,
+          "renderer": 284.5625,
+          "gpu": 97.0625,
+          "other": 52.890625,
+          "total": 609.484375,
+          "nodes": 743,
+          "images": 0,
+          "canvases": 0,
+          "heap": 28669162,
+          "visibility": "visible"
+        },
+        {
+          "phase": "body-open",
+          "main": 184.515625,
+          "renderer": 401.96875,
+          "gpu": 102.921875,
+          "other": 52.921875,
+          "total": 742.328125,
+          "nodes": 1163,
+          "images": 65,
+          "canvases": 0,
+          "heap": 40458040,
+          "visibility": "visible"
+        },
+        {
+          "phase": "body-scrolled",
+          "main": 184.34375,
+          "renderer": 459.40625,
+          "gpu": 120.765625,
+          "other": 52.96875,
+          "total": 817.484375,
+          "nodes": 1163,
+          "images": 65,
+          "canvases": 0,
+          "heap": 40991326,
+          "visibility": "visible"
+        },
+        {
+          "phase": "split-open",
+          "main": 184.9375,
+          "renderer": 577.90625,
+          "gpu": 159.28125,
+          "other": 52.96875,
+          "total": 975.09375,
+          "nodes": 2402,
+          "images": 65,
+          "canvases": 4,
+          "heap": 38603726,
+          "visibility": "visible"
+        },
+        {
+          "phase": "split-scrolled",
+          "main": 183.734375,
+          "renderer": 753.09375,
+          "gpu": 197.1875,
+          "other": 52.984375,
+          "total": 1187,
+          "nodes": 4083,
+          "images": 65,
+          "canvases": 11,
+          "heap": 53593186,
+          "visibility": "visible"
+        },
+        {
+          "phase": "pdf-closed",
+          "main": 183.84375,
+          "renderer": 678.296875,
+          "gpu": 137.9375,
+          "other": 52.984375,
+          "total": 1053.0625,
+          "nodes": 1165,
+          "images": 65,
+          "canvases": 0,
+          "heap": 56062641,
+          "visibility": "visible"
+        }
+      ]
+    },
+    {
+      "kind": "js",
+      "round": 2,
+      "stats": {
+        "blocks": 425,
+        "translated": 232,
+        "pages": 41,
+        "figures": 20
+      },
+      "measurements": [
+        {
+          "phase": "empty",
+          "main": 175.5625,
+          "renderer": 279.78125,
+          "gpu": 97.90625,
+          "other": 52.921875,
+          "total": 606.171875,
+          "nodes": 743,
+          "images": 0,
+          "canvases": 0,
+          "heap": 30853650,
+          "visibility": "visible"
+        },
+        {
+          "phase": "body-open",
+          "main": 176.0625,
+          "renderer": 340.625,
+          "gpu": 100.359375,
+          "other": 52.921875,
+          "total": 669.96875,
+          "nodes": 3706,
+          "images": 20,
+          "canvases": 1,
+          "heap": 36484169,
+          "visibility": "visible"
+        },
+        {
+          "phase": "body-scrolled",
+          "main": 176.375,
+          "renderer": 378.53125,
+          "gpu": 110.28125,
+          "other": 52.96875,
+          "total": 718.15625,
+          "nodes": 3706,
+          "images": 20,
+          "canvases": 1,
+          "heap": 26971630,
+          "visibility": "visible"
+        },
+        {
+          "phase": "split-open",
+          "main": 176.328125,
+          "renderer": 447.9375,
+          "gpu": 148.234375,
+          "other": 52.96875,
+          "total": 825.46875,
+          "nodes": 3707,
+          "images": 20,
+          "canvases": 1,
+          "heap": 28853771,
+          "visibility": "visible"
+        },
+        {
+          "phase": "split-scrolled",
+          "main": 174.671875,
+          "renderer": 552.921875,
+          "gpu": 179.625,
+          "other": 52.984375,
+          "total": 960.203125,
+          "nodes": 3707,
+          "images": 20,
+          "canvases": 1,
+          "heap": 30651043,
+          "visibility": "visible"
+        },
+        {
+          "phase": "pdf-closed",
+          "main": 174.671875,
+          "renderer": 524.125,
+          "gpu": 146.171875,
+          "other": 52.984375,
+          "total": 897.953125,
+          "nodes": 3706,
+          "images": 20,
+          "canvases": 1,
+          "heap": 30676011,
+          "visibility": "visible"
+        }
+      ]
+    }
+  ]
+}

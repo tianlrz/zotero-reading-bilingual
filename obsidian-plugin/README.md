@@ -1,31 +1,35 @@
-# Obsidian 双语阅读器（桌面原型 0.1.0）
+# Obsidian 原生双语同步（平行版本 0.2.0）
 
-Zotero 负责文献库、生成阅读模式和翻译；Obsidian 负责日常阅读与笔记。导入直接读取 Zotero 已有的 `.zotero-sdt-cache` 和 `.bilingual.json`，不会调用翻译 API，也不要求 Zotero 正在运行。
+此版本只负责缓存导入和定位同步。正文是普通 `.reading.md`，使用 Obsidian 原生阅读模式 / 实时预览 / 源码编辑；右侧是 Obsidian 自带 PDF 阅读器。插件不打包 PDF.js，不创建自己的正文 DOM、阅读画布或 PDF worker。
 
-## 安装和使用
+原生版 ID 为 `zotero-bilingual-sync`，旧 JS 版 ID 为 `zotero-bilingual-reader`，可以同时安装。旧版源码在 `obsidian-custom-reader` 分支，发布标签为 `obsidian-v0.1.0`；包含段落编辑的中间构建另保留于 `legacy/custom-reader-0.1.1/` 和本地归档。构建原生版不会覆盖旧版产物。
 
-1. 将构建产物放入库目录的 `.obsidian/plugins/zotero-bilingual-reader/`。该目录应包含 `main.js`、`manifest.json`、`styles.css` 和 PDF.js 资源。
-2. 在 Obsidian「设置 → 第三方插件」启用 **Zotero Bilingual Reader**。尚未允许第三方插件的库需先关闭受限模式。
-3. 命令面板运行「导入 Zotero PDF 的阅读模式与已有译文」，选择 Zotero `storage/附件键/` 下的原 PDF。此前需在 Zotero 中打开过此文献的阅读模式；已有翻译会被复用。
-4. 使用左侧书本按钮或「打开双语阅读」命令。默认只显示正文；点击「展开 PDF」显示右侧原文。「回到 Zotero」定位原条目，「写笔记」打开独立笔记。
+## 安装与使用
 
-新导入文献的链接默认定位 Zotero 附件；调用导入接口时可以提供父条目的 `zoteroURI`。设置页可修改 Zotero 数据目录，以及是否默认左右分屏。
+1. 将原生安装包中的 `zotero-bilingual-sync` 目录放入库的 `.obsidian/plugins/`，在第三方插件设置中启用 **Zotero Bilingual Sync**。
+2. 原有 `.reading.md` 可以直接用 Obsidian 打开、编辑。命令「Zotero Bilingual Sync: 打开双语阅读」只打开正文；「打开原生 PDF 分屏并同步」打开右侧 PDF。
+3. 正文滚动定位 PDF 页，PDF 页码变化也会定位正文。阅读模式与实时预览都支持同步。命令「收起当前文献的 PDF 分屏」关闭 PDF 并解除监听。
+4. 导入新文献时，在命令面板选择「导入 Zotero PDF 的阅读模式与已有译文」，选择 Zotero `storage/附件键/` 下的原 PDF。需要此前在 Zotero 中生成过阅读模式；译文复用 `.bilingual.json`，不调用翻译 API。
 
-## 文件和资源
+默认只开正文。设置中可以默认开分屏，或关闭同步。
 
-- `Zotero 阅读/*.zrb.json` 保存正文、译文和 PDF 坐标；`*.reading.md` 提供可以搜索、离线查看的 Markdown 正文。
-- `*.md` 是独立笔记，重复导入会保留已有笔记；生成的阅读正文和缓存文件会更新。
-- `*.assets/` 只保存阅读模式所需的图表与公式裁图，不复制原 PDF。
-- 宋体译文、学术蓝、无边线、浅色底；Markdown、换行和 LaTeX 由 Obsidian 渲染。
-- PDF 按需加载，画布只显示当前页；收起 PDF 或关闭阅读页会释放 PDF 文档与 worker。这里只验证了资源释放，尚未测量两款应用的整体内存差值。
+## 文件与编辑
 
-## 同步范围
+- `.reading.md` 为真实 Markdown，原文和译文可以直接编辑；新导入的译文使用标准 callout，保持宋体、学术蓝、无边线和浅色底。
+- `<!-- block-…; PDF … -->` 是段落定位标记。可以修改正文并插入笔记，保留这些标记即可维持对应关系；删除标记会失去该段定位。
+- `.md` 为独立笔记，`.zrb.json` 保存导入时的正文和坐标快照。Markdown 编辑不写回 Zotero 缓存，也不回写到旧 JS 阅读器。
+- 重复导入已有文献会保留 `.reading.md` 的编辑内容，不覆盖；目前没有自动刷新新增译文的功能。
+- `.assets/` 保存图表和公式裁图。导入时临时使用 Obsidian 自带 PDF 文档进行裁图，完成后关闭临时阅读页。
 
-正文滚动按段落的原始坐标切换 PDF 页并高亮原文位置；右侧上一页、下一页也会定位正文。跨页段落提供多个页码按钮，自动跟随其起始页。当前没有逐句同步、Zotero 标注回写或 Obsidian 内新翻译功能。
+## PDF 与同步范围
 
-同步库到另一台电脑时，原 PDF 仍需通过 Zotero 附件同步到当地，再设置 Zotero 数据目录。PDF 内容哈希与阅读缓存不符时会拒绝关联，避免显示错误的页码。
+原 PDF 留在 Zotero；在库中创建 `.pdf` **符号链接**，不复制内容。换电脑后先同步 Zotero 原附件，在设置中修改 Zotero 数据目录，打开分屏时会重新建立链接。不同同步工具对符号链接的处理不一致，建议不将这些 PDF 链接作为附件备份来源。
 
-## 开发和验证
+PDF 内容哈希不符时拒绝使用旧页码映射；哈希读取采用流式处理。段落自动跟随起始页，跨页段落仍有多页映射；同步精度是段落级，没有逐句定位、高亮覆盖层或标注回写。
+
+原生阅读器仍属于 Obsidian 的 Electron 环境，PDF 仍需要页面、图片和字体缓存；本版本减少插件重复实现，并不保证比 JS 版省内存。内存对照报告随发布提供，指标为进程 RSS，不能直接等同于活动监视器的内存列或实际独占 RAM。
+
+## 开发与验证
 
 ```sh
 npm ci
@@ -33,6 +37,16 @@ npm test
 npm run build:obsidian
 ```
 
-产物位于 `obsidian-plugin/dist/`。仅支持桌面版；不依赖社区 PDF 插件。
+产物在 `obsidian-plugin/dist-native/`，只需 `main.js`、`manifest.json`、`styles.css`。旧 JS 版构建请使用其独立源码分支。
 
-在 macOS Obsidian 1.13.7 的独立测试库验证：41 页文献导入 425 个正文块、复用 232 个译文块、保存 20 个图表/公式裁图；正文定位第 15 页、快速跳转后的第 10 页、原文高亮和阅读位置保存均通过。收起 PDF 后会话为空、画布归零，图表仍可加载；插件卸载后重载只有一个阅读页。自动检查共 17 项通过。
+对照测试脚本：
+
+```sh
+node obsidian-plugin/bench/compare.mjs FIXTURE_DIR LEGACY_ZIP OUTPUT_JSON 2
+```
+
+`FIXTURE_DIR` 为包含导入 bundle、Markdown 和图表目录的测试资料夹。脚本为两版建立独立库和配置，交替顺序启动四次，使用同一篇文献、1200×900 窗口、相同滚动次数；分别记录空白、正文、正文滚动后、PDF 分屏、分屏滚动后、关闭 PDF 的 renderer / GPU / 全部进程 RSS。测试窗口统一关闭后台节流，保持滚动执行，不修改用户应用的 GPU 设置。
+
+仅支持桌面版。原生 PDF 和编辑器的部分定位接口未列入 Obsidian 公共 API，集中隔离在 `src/native-reader.js`；已在 Obsidian 1.13.7 验证，需要随 Obsidian 更新检查兼容性。
+
+本机实测结果见 [内存对照](bench/RESULTS.md)：两轮平均分屏滚动后，JS Renderer 581 MiB、原生 Renderer 751 MiB。原生版在此样本下更重。

@@ -1,9 +1,9 @@
 {
-  "id": "zotero-bilingual-reader",
-  "name": "Zotero Bilingual Reader",
-  "version": "0.1.0",
-  "minAppVersion": "1.8.0",
-  "description": "Read cached bilingual Zotero papers with an optional synchronized original PDF pane.",
+  "id": "zotero-bilingual-sync",
+  "name": "Zotero Bilingual Sync",
+  "version": "0.2.0",
+  "minAppVersion": "1.13.7",
+  "description": "Synchronize native Obsidian Markdown and PDF panes using Zotero reading anchors.",
   "author": "tianlrz",
   "isDesktopOnly": true
 }

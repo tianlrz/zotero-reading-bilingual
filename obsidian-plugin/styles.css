@@ -1,35 +1,10 @@
-.zrb-reader { padding: 0 !important; display: flex; flex-direction: column; overflow: hidden; }
-.zrb-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--background-modifier-border); flex: 0 0 auto; }
-.zrb-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.zrb-toolbar button, .zrb-zotero-link { flex: 0 0 auto; font-size: 12px; }
-.zrb-layout { display: flex; min-height: 0; flex: 1; overflow: hidden; }
-.zrb-reading { flex: 1; min-width: 0; overflow-y: auto; padding: 24px clamp(18px, 6%, 80px); scrollbar-gutter: stable; }
-.zrb-split .zrb-reading { flex: 0 0 53%; padding: 20px 25px; }
-.zrb-summary { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
-.zrb-block { margin-bottom: 24px; content-visibility: auto; contain-intrinsic-size: auto 130px; }
-.zrb-locator { display: flex; gap: 4px; margin-bottom: 6px; }
-.zrb-locator button { font-size: 10px; padding: 1px 5px; color: var(--text-muted); box-shadow: none; background: transparent; height: auto; }
-.zrb-original { font-size: 16px; line-height: 1.65; }
-.zrb-original p, .zrb-translation p { margin: 0 0 0.6em; }
-.zrb-translation p, .zrb-translation li { white-space: pre-wrap; }
-.zrb-original > :last-child, .zrb-translation > :last-child { margin-bottom: 0; }
-.zrb-original h1, .zrb-original h2 { margin-top: 14px; }
-.zrb-translation { margin-top: 12px; padding: 13px 16px; border-radius: 5px; background: color-mix(in srgb, #3f51b5 6%, var(--background-primary)); font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif; font-size: 16px; line-height: 1.8; overflow-wrap: anywhere; }
-.zrb-translation table { width: 100%; border-collapse: collapse; }
-.zrb-translation th, .zrb-translation td { padding: 5px; border: 1px solid var(--background-modifier-border); }
-.zrb-translation .math-block { overflow-x: auto; white-space: normal; }
-.zrb-figures img { display: block; max-width: 100%; height: auto; margin: 10px auto; border-radius: 3px; }
-.zrb-pdf-pane { flex: 1; min-width: 0; overflow-y: auto; padding: 10px 12px; border-left: 1px solid var(--background-modifier-border); background: var(--background-secondary); }
-.zrb-pdf-pane[hidden] { display: none; }
-.zrb-pdf-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; position: sticky; top: 0; z-index: 2; background: var(--background-secondary); padding-bottom: 8px; }
-.zrb-pdf-controls button { font-size: 11px; padding: 4px 6px; }
-.zrb-pdf-controls span, .zrb-follow { font-size: 11px; }
-.zrb-follow { display: flex; align-items: center; gap: 3px; margin-left: auto; }
-.zrb-pdf-status { color: var(--text-muted); font-size: 12px; }
-.zrb-canvas-box { position: relative; width: 100%; line-height: 0; }
-.zrb-canvas-box canvas { display: block; width: 100%; height: auto; }
-.zrb-highlight { position: absolute; inset: 0; pointer-events: none; }
-.zrb-highlight-rect { position: absolute; border: 1px solid #536dfe; background: #536dfe12; }
+.zrb-native-reading .callout[data-callout="zrb-translation"] {
+  --callout-color: 63, 81, 181;
+  border: 0;
+  background: color-mix(in srgb, #3f51b5 6%, var(--background-primary));
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+}
+.zrb-native-reading .callout[data-callout="zrb-translation"] .callout-title { display: none; }
+.zrb-native-reading .callout[data-callout="zrb-translation"] .callout-content { line-height: 1.8; }
 .zrb-library { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow: auto; margin-top: 16px; }
 .zrb-library button { text-align: left; white-space: normal; height: auto; padding: 9px; }
-@media (max-width: 650px) { .zrb-toolbar { flex-wrap: wrap; } .zrb-title { flex-basis: 100%; } .zrb-split .zrb-reading { flex-basis: 50%; padding: 14px; } }
