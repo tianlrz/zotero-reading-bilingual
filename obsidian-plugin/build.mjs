@@ -1,0 +1,13 @@
+import { build } from "esbuild";
+import { cp, mkdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+const root = path.dirname(fileURLToPath(import.meta.url)), out = path.join(root, "dist");
+await mkdir(out, { recursive: true });
+await build({ entryPoints: [path.join(root, "src/main.js")], outfile: path.join(out, "main.js"), bundle: true, format: "cjs", platform: "node", target: "es2022", external: ["obsidian", "electron", "@electron/remote"], minify: false, logLevel: "warning" });
+for (const file of ["manifest.json", "styles.css"]) await cp(path.join(root, file), path.join(out, file));
+const pdfRoot = path.join(root, "../node_modules/pdfjs-dist");
+for (const file of ["pdf.min.mjs", "pdf.worker.min.mjs"]) await cp(path.join(pdfRoot, "legacy/build", file), path.join(out, file));
+for (const dir of ["cmaps", "standard_fonts", "wasm"]) await cp(path.join(pdfRoot, dir), path.join(out, dir), { recursive: true });
+await cp(path.join(pdfRoot, "LICENSE"), path.join(out, "PDFJS-LICENSE"));
+console.log("Obsidian plugin built:", out);

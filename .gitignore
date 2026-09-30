@@ -1,3 +1,5 @@
 *.xpi
 .DS_Store
 node_modules/
+/obsidian-plugin/dist/
+/dist/

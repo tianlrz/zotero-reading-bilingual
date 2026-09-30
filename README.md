@@ -103,13 +103,17 @@ Zotero 的阅读模式「外观」面板里可以调页宽和字号，但这两�
 
 ## 开发
 
-无需构建步骤，仓库结构即插件结构。打包：
+Zotero 插件无需构建步骤，仓库结构即插件结构。打包：
 
 ```bash
 zip -r -X zotero-reading-bilingual.xpi manifest.json bootstrap.js prefs.js content
 ```
 
-渲染与编辑回归检查：`npm ci && npm test`。npm 依赖只用于测试，不参与插件运行。
+渲染、缓存导入与编辑回归检查：`npm ci && npm test`。Zotero 插件运行无需 npm。
+
+## Obsidian 阅读器
+
+桌面原型可以离线复用 Zotero 的阅读模式和译文缓存，提供双语正文、独立笔记、回到 Zotero 的链接，以及按段落同步的可选 PDF 分屏。原 PDF 无需复制到笔记库。安装、资源管理和当前同步范围见 [Obsidian 阅读器说明](obsidian-plugin/README.md)。构建命令：`npm run build:obsidian`。
 
 ## License
 

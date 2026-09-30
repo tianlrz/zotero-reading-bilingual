@@ -1,0 +1,9 @@
+{
+  "id": "zotero-bilingual-reader",
+  "name": "Zotero Bilingual Reader",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.0",
+  "description": "Read cached bilingual Zotero papers with an optional synchronized original PDF pane.",
+  "author": "tianlrz",
+  "isDesktopOnly": true
+}
