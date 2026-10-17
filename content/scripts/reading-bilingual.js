@@ -425,9 +425,6 @@ var ReadingBilingual = {
   _providerExtraBody() {
     const provider = (this.getProvider() || "").toLowerCase();
     const baseUrl = (this.getBaseUrl() || "").toLowerCase();
-    // DeepSeek：思考模式默认开启（reasoning_effort 默认 high），思考模式下
-    // max_tokens 未设置时默认 64K，翻译任务会为看不见的推理付出大量输出费用。
-    // 按官方写法用 thinking 开关关闭。
     if (provider === "deepseek" || baseUrl.includes("deepseek.com")) {
       return { thinking: { type: "disabled" } };
     }
