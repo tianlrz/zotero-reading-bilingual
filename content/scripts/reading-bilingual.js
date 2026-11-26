@@ -1007,6 +1007,59 @@ var ReadingBilingual = {
         white-space: pre-wrap !important;
         font-variant-numeric: tabular-nums !important;
       }
+      .zotero-bilingual-table-card {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .zrb-table-scroll {
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        overscroll-behavior-x: contain !important;
+        font-size: 0.9em !important;
+        line-height: 1.5 !important;
+      }
+      .zrb-table-scroll:focus-visible {
+        outline: 2px solid ${theme.border} !important;
+        outline-offset: 2px !important;
+      }
+      .zrb-rich-text .zrb-translation-table {
+        min-width: calc(var(--zrb-table-columns) * 6em + 4em) !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        margin: 0 !important;
+        font: inherit !important;
+        color: inherit !important;
+        font-variant-numeric: tabular-nums !important;
+      }
+      .zrb-translation-table :is(th, td) {
+        padding: 0.5em 0.65em !important;
+        min-width: 4.5em !important;
+        max-width: 14em !important;
+        vertical-align: middle !important;
+        text-align: center !important;
+        text-indent: 0 !important;
+        font: inherit !important;
+        white-space: normal !important;
+        word-break: normal !important;
+        overflow-wrap: break-word !important;
+      }
+      .zrb-translation-table thead th {
+        font-weight: 600 !important;
+        background: ${theme.bgTint} !important;
+      }
+      .zrb-translation-table tr > :first-child {
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 1 !important;
+        min-width: 8em !important;
+        text-align: left !important;
+        font-weight: 600 !important;
+        background: var(--background-color, Canvas) !important;
+      }
+      .zrb-translation-table tbody tr:nth-child(even) td {
+        background: rgba(127,127,127,0.04) !important;
+      }
       .zotero-bilingual-toc-card {
         margin: 12px 0 20px 0 !important;
         padding: 14px 18px !important;
@@ -2413,7 +2466,8 @@ var ReadingBilingual = {
   },
 
   setTranslationContent(content, text, plain = false) {
-    ZRBTranslationRenderer.renderInto(content, text, { plain });
+    const card = content?.closest?.(".zotero-bilingual-card");
+    ZRBTranslationRenderer.renderInto(content, text, { plain, table: card?.classList.contains("zotero-bilingual-table-card") });
   },
 
   attachCardActionHandlers(card, reader, doc, origText) {

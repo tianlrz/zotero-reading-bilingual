@@ -57,6 +57,28 @@ test("Markdown renders emphasis, hard breaks, lists, headings and tables", () =>
   assert.ok(render("参数 | 值\n--- | ---\n学习率 | 0.01").querySelector("table"));
 });
 
+test("table translation pipe rows render as a semantic grid and malformed rows stay readable", () => {
+  const { doc, plugin, renderer } = setup();
+  const card = doc.createElement("div");
+  card.className = "zotero-bilingual-card zotero-bilingual-table-card";
+  const content = doc.createElement("div");
+  content.className = "zrb-card-content";
+  card.appendChild(content);
+  doc.body.appendChild(card);
+  const source = "| 参数 | 值 |\n| --- | --- |\n| 学习率 | 0.001 |\n| 批大小 | 32 |";
+  plugin.setTranslationContent(content, source);
+  assert.equal(content.querySelectorAll("thead th").length, 2);
+  assert.equal(content.querySelectorAll("tbody tr").length, 2);
+  assert.equal(content.querySelector("tbody th[scope='row']").textContent, "学习率");
+  assert.equal(content.querySelectorAll("tbody td")[0].textContent, "0.001");
+  assert.equal(renderer.getSource(content), source);
+
+  const malformed = doc.createElement("div");
+  renderer.renderInto(malformed, "项目 | 值\n学习率 | 0.001 | 多余值", { table: true });
+  assert.equal(malformed.querySelector("table"), null);
+  assert.equal(malformed.textContent, "项目 | 值\n学习率 | 0.001 | 多余值");
+});
+
 test("card styles preserve plain line breaks and allow rendered Markdown and editing", () => {
   const { doc, render, plugin } = setup();
   const style = doc.createElement("style");

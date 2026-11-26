@@ -104,19 +104,64 @@ var ZRBTranslationRenderer = {
     return element?._zrbRawText ?? element?.textContent ?? "";
   },
 
-  renderInto(element, source, { plain = false, inline = false } = {}) {
+  _splitTableRow(line) {
+    const cells = [];
+    let start = 0, lastPipe = -1;
+    for (let i = 0; i < line.length; i++) {
+      const math = (line[i] === "$" || line[i] === "\\") && this._readMath(line, i);
+      if (math) { i = math.end - 1; continue; }
+      if (line[i] === "\\") { i++; continue; }
+      if (line[i] === "`") {
+        const ticks = line.slice(i).match(/^`+/)[0];
+        const end = line.indexOf(ticks, i + ticks.length);
+        if (end !== -1) { i = end + ticks.length - 1; continue; }
+      }
+      if (line[i] !== "|") continue;
+      cells.push(line.slice(start, i).trim());
+      start = i + 1; lastPipe = i;
+    }
+    if (lastPipe === -1) return null;
+    cells.push(line.slice(start).trim());
+    if (line.startsWith("|")) cells.shift();
+    if (lastPipe === line.length - 1) cells.pop();
+    return cells;
+  },
+
+  _tableRows(text) {
+    // Older table prompts returned pipe rows without a Markdown separator.
+    // Parse only explicitly marked tables, and never guess missing cells.
+    const body = text.trim().replace(/^```(?:markdown|md|text)?\s*\n([\s\S]*?)\n```$/i, "$1");
+    const rows = body.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => this._splitTableRow(line));
+    if (rows.length < 2 || rows.some(row => !row) || rows[0].length < 2) return null;
+    if (rows.some(row => row.length !== rows[0].length)) return null;
+    if (rows[1].every(cell => /^:?-{3,}:?$/.test(cell))) rows.splice(1, 1);
+    return rows;
+  },
+
+  _renderTable(rows, md) {
+    const header = rows[0].map(cell => '<th scope="col">' + md.renderInline(cell) + '</th>').join("");
+    const body = rows.slice(1).map(row => '<tr>' + row.map((cell, i) =>
+      (i ? '<td>' : '<th scope="row">') + md.renderInline(cell) + (i ? '</td>' : '</th>')
+    ).join("") + '</tr>').join("");
+    return '<div class="zrb-table-scroll" role="region" aria-label="表格译文，可横向滚动" tabindex="0">' +
+      '<table class="zrb-translation-table" style="--zrb-table-columns:' + rows[0].length + '">' +
+      '<thead><tr>' + header + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+  },
+
+  renderInto(element, source, { plain = false, inline = false, table = false } = {}) {
     const text = String(source ?? "");
     element._zrbRawText = text;
     element.classList.remove("zrb-rich-text");
+    const rows = table && !plain ? this._tableRows(text) : null;
     // Most translations are ordinary text. This avoids loading or parsing the
     // libraries when they are unnecessary, including while a request is pending.
-    if (plain || !this.hasFormatting(text)) {
+    if (plain || (table && !rows) || !this.hasFormatting(text)) {
       element.textContent = text;
       return;
     }
     try {
       const md = this._getMarkdown();
-      const html = inline ? md.renderInline(text) : md.render(text);
+      const html = rows ? this._renderTable(rows, md) : inline ? md.renderInline(text) : md.render(text);
       element.innerHTML = html;
       element.classList.add("zrb-rich-text");
       if (html.includes('class="katex')) {
