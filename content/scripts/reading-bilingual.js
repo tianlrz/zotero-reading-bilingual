@@ -13,6 +13,7 @@ var ReadingBilingual = {
   _observers: [],
   _autoTranslateTimers: new Map(),
   _autoTranslatingReaders: new WeakSet(),
+  _displayModeTranslations: new WeakMap(),
   // One-shot marker per reading-mode view, so the defaults are applied when a
   // document opens and never fight a manual change afterwards
   _appearanceApplied: new WeakSet(),
@@ -41,6 +42,7 @@ var ReadingBilingual = {
   DEFAULT_FALLBACK_MODELS: "gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash",
   PREF_READER_PAGE_WIDTH: "extensions.zotero.reading-bilingual.readerPageWidth",
   PREF_READER_SCALE: "extensions.zotero.reading-bilingual.readerScale",
+  PREF_READER_DISPLAY_MODE: "extensions.zotero.reading-bilingual.readerDisplayMode",
   DEFAULT_CONCURRENCY: 3,
   DEFAULT_PROVIDER: "gemini",
   DEFAULT_MODEL: "gemini-flash-latest",
@@ -992,6 +994,15 @@ var ReadingBilingual = {
       .zotero-bilingual-hidden {
         display: none !important;
       }
+      .zrb-display-original .zotero-bilingual-card {
+        display: none !important;
+      }
+      .zrb-translation-only .zrb-original-text,
+      .zrb-translation-only table.zrb-source-table,
+      .zrb-translation-only .zrb-toc-orig,
+      .zrb-translation-only .zotero-bilingual-toc-title {
+        display: none !important;
+      }
       .zotero-bilingual-ref-notice {
         display: inline-block !important;
         margin: 6px 0 14px 0 !important;
@@ -1633,141 +1644,107 @@ var ReadingBilingual = {
     }
   },
 
+  removeToolbarDisplayControls(doc) {
+    for (const id of ["zotero-reading-bilingual-fab", "zotero-reading-bilingual-btn", "zrb-button-context-menu", "zrb-display-mode", "zrb-display-mode-menu"]) {
+      const control = doc.getElementById(id);
+      control?._zrbCloseMenu?.();
+      control?.remove();
+    }
+  },
+
   injectToolbarButton(reader, doc) {
     if (!doc) return;
-
-    // Clean up any legacy floating FAB
-    const oldFab = doc.getElementById("zotero-reading-bilingual-fab");
-    if (oldFab) oldFab.remove();
-
-    // A button left behind by a previous load of the plugin still carries a
-    // click handler bound to a script that has since been unloaded, so it
-    // silently does nothing. Upgrading in place used to leave exactly that
-    // behind: bail out here and the toolbar button stops responding until the
-    // tab is closed and reopened.
-    const staleBtn = doc.getElementById("zotero-reading-bilingual-btn");
-    if (staleBtn) {
-      if (staleBtn.dataset.zrbSession === this.sessionId) return;
-      staleBtn.remove();
-      const staleStyle = doc.getElementById("zotero-reading-bilingual-btn-style");
-      if (staleStyle) staleStyle.remove();
+    const existing = doc.getElementById("zrb-display-mode");
+    if (existing?.dataset.zrbSession === this.sessionId) {
+      this.syncToolbarDisplayMode(reader, doc);
+      return;
     }
+    this.removeToolbarDisplayControls(doc);
+    doc.getElementById("zotero-reading-bilingual-btn-style")?.remove();
 
-    // Inject toolbar button CSS if not already present
-    if (!doc.getElementById("zotero-reading-bilingual-btn-style")) {
-      const style = doc.createElement("style");
-      style.id = "zotero-reading-bilingual-btn-style";
-      style.textContent = `
-        .reading-bilingual-toolbar-btn {
-          width: auto !important;
-          min-width: 28px !important;
-          height: 28px !important;
-          padding: 0 7px !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 4px !important;
-          border: none !important;
-          border-radius: 5px !important;
-          background: transparent !important;
-          color: var(--fill-secondary, #444) !important;
-          cursor: pointer !important;
-          font-size: 12px !important;
-          font-weight: 500 !important;
-          user-select: none !important;
-          transition: all 0.15s ease !important;
-          box-sizing: border-box !important;
-          margin: 0 2px !important;
-          vertical-align: middle !important;
-        }
-        .reading-bilingual-toolbar-btn:hover {
-          background-color: var(--fill-quinary, rgba(0, 0, 0, 0.06)) !important;
-          color: #4f46e5 !important;
-        }
-        .reading-bilingual-toolbar-btn.active {
-          background-color: rgba(99, 102, 241, 0.12) !important;
-          color: #4f46e5 !important;
-          font-weight: 600 !important;
-        }
-        .reading-bilingual-toolbar-btn.translating {
-          background-color: rgba(245, 158, 11, 0.15) !important;
-          color: #d97706 !important;
-        }
-        .reading-bilingual-toolbar-btn.success {
-          background-color: rgba(16, 185, 129, 0.15) !important;
-          color: #059669 !important;
-        }
-        .reading-bilingual-toolbar-btn.error {
-          background-color: rgba(239, 68, 68, 0.15) !important;
-          color: #dc2626 !important;
-        }
-        .reading-bilingual-toolbar-btn svg {
-          flex-shrink: 0;
-        }
-      `;
-      (doc.head || doc.body).appendChild(style);
-    }
-
-    // Locate the search button (.toolbar-button.find) in the toolbar
     const findBtn =
       doc.querySelector(".toolbar-button.find") ||
       doc.querySelector(".toolbar-button[title*='Find']") ||
       doc.querySelector(".toolbar-button[title*='查找']") ||
       doc.querySelector(".toolbar-button[title*='搜索']");
-
     const toolbarEnd = doc.querySelector(".toolbar .end") || doc.querySelector(".toolbar");
-
-    // If toolbar is not ready yet, retry in 200ms
     if (!findBtn && !toolbarEnd) {
       setTimeout(() => this.injectToolbarButton(reader, doc), 250);
       return;
     }
 
-    const btn = doc.createElement("button");
-    btn.id = "zotero-reading-bilingual-btn";
-    btn.dataset.zrbSession = this.sessionId;
-    btn.className = "toolbar-button reading-bilingual-toolbar-btn";
-    btn.setAttribute("tabindex", "-1");
-    btn.setAttribute("title", "沉浸式双语阅读：左键显示/隐藏译文，Shift/Alt+左键重新翻译，右键打开操作菜单");
-    btn.innerHTML = `
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="m5 8 6 6"/>
-        <path d="m4 14 6-6 2-3"/>
-        <path d="M2 5h12"/>
-        <path d="M7 2h1"/>
-        <path d="m22 22-5-10-5 10"/>
-        <path d="M14 18h6"/>
-      </svg>
-      <span id="zrb-btn-text" style="font-size: 12px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">双语</span>
+    const style = doc.createElement("style");
+    style.id = "zotero-reading-bilingual-btn-style";
+    style.textContent = `
+      .reading-bilingual-toolbar-select {
+        -moz-window-dragging: no-drag !important;
+        pointer-events: auto !important;
+      }
+      .reading-bilingual-toolbar-select {
+        -moz-appearance: menulist !important;
+        appearance: auto !important;
+        width: auto !important;
+        min-width: 88px !important;
+        height: 28px !important;
+        padding: 0 20px 0 8px !important;
+        border: 1px solid var(--fill-quaternary, rgba(0, 0, 0, 0.18)) !important;
+        border-radius: 5px !important;
+        background-color: var(--material-toolbar, transparent) !important;
+        color: var(--fill-secondary, #444) !important;
+        cursor: pointer !important;
+        font: 500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        box-sizing: border-box !important;
+        margin: 0 2px !important;
+        vertical-align: middle !important;
+      }
+      .reading-bilingual-toolbar-select.active {
+        background-color: rgba(99, 102, 241, 0.12) !important;
+        color: #4f46e5 !important;
+      }
+      .reading-bilingual-toolbar-select.translating { color: #d97706 !important; }
+      .reading-bilingual-toolbar-select.error { color: #dc2626 !important; }
     `;
+    (doc.head || doc.body).appendChild(style);
 
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (e.shiftKey || e.altKey) {
-        this.retranslateActiveReader(reader);
-        return;
-      }
-      const contentDoc = this.getRealContentDoc(reader);
-      const hasCards = contentDoc && contentDoc.querySelector(".zotero-bilingual-card");
-      if (hasCards) {
-        this.toggleVisibility(reader);
-      } else {
-        this.translateActiveReader(reader);
-      }
-    });
-
-    btn.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.showButtonContextMenu(e, reader, doc);
-    });
-
-    // Place directly to the left of the Search button!
-    if (findBtn && findBtn.parentNode) {
-      findBtn.parentNode.insertBefore(btn, findBtn);
-    } else if (toolbarEnd) {
-      toolbarEnd.appendChild(btn);
+    const button = doc.createElement("select");
+    button.id = "zrb-display-mode";
+    button.dataset.zrbSession = this.sessionId;
+    button.className = "toolbar-button reading-bilingual-toolbar-select";
+    button.setAttribute("aria-label", "显示内容");
+    button.title = "显示内容：选择原文、对照或仅译文";
+    for (const [value, text] of [["original", "原文"], ["bilingual", "对照"], ["translation", "仅译文"]]) {
+      const option = doc.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      button.appendChild(option);
     }
+    // Zotero's FocusManager exempts native selects from pointerdown cancellation,
+    // so the browser opens the option list on the first click.
+    button.addEventListener("keydown", (event) => {
+      if (["ArrowDown", "ArrowUp", "Home", "End", "Enter", " "].includes(event.key)) {
+        // Keep Reader-level shortcuts from consuming native select navigation.
+        event.stopPropagation();
+      }
+    });
+    button.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.showButtonContextMenu(event, reader, doc);
+    });
+    button.addEventListener("change", async (event) => {
+      event.stopPropagation();
+      const mode = button.value;
+      try {
+        await this.setReaderDisplayMode(reader, mode);
+      } catch (error) {
+        Zotero.logError(error);
+      } finally {
+        this.syncToolbarDisplayMode(reader, doc);
+      }
+    });
+    if (findBtn?.parentNode) findBtn.parentNode.insertBefore(button, findBtn);
+    else toolbarEnd.appendChild(button);
+    this.syncToolbarDisplayMode(reader, doc);
   },
 
   showButtonContextMenu(e, reader, doc) {
@@ -1900,11 +1877,11 @@ var ReadingBilingual = {
 
   scheduleAutoTranslate(reader) {
     if (!reader || !this.getAutoTranslate()) return;
-    if (this._autoTranslateTimers.has(reader) || this._autoTranslatingReaders.has(reader)) return;
+    if (this._autoTranslateTimers.has(reader) || this._autoTranslatingReaders.has(reader) || this._displayModeTranslations.has(reader)) return;
 
     const timer = setTimeout(async () => {
       this._autoTranslateTimers.delete(reader);
-      if (!this.getAutoTranslate() || this._autoTranslatingReaders.has(reader)) return;
+      if (!this.getAutoTranslate() || this._autoTranslatingReaders.has(reader) || this._displayModeTranslations.has(reader)) return;
       try {
         const internal = reader._internalReader || reader;
         const isSDT = !!(
@@ -1919,7 +1896,14 @@ var ReadingBilingual = {
 
         this._autoTranslatingReaders.add(reader);
         Zotero.debug("[ReadingBilingual] Auto-translating reading mode...");
-        await this.translateReader(reader, contentDoc, true /* isAuto */);
+        const task = this.translateReader(reader, contentDoc, true /* isAuto */);
+        this._displayModeTranslations.set(reader, task);
+        try {
+          await task;
+        } finally {
+          if (this._displayModeTranslations.get(reader) === task) this._displayModeTranslations.delete(reader);
+          this.syncToolbarDisplayMode(reader);
+        }
       } catch (e) {
         Zotero.logError(e);
       } finally {
@@ -2238,7 +2222,7 @@ var ReadingBilingual = {
     }
   },
 
-  async translateActiveReader(targetReader = null, win = null) {
+  async translateActiveReader(targetReader = null, win = null, preserveDisplayMode = false) {
     const reader = targetReader || this.getActiveReader(win);
     if (!reader) {
       Services.prompt.alert(
@@ -2264,26 +2248,17 @@ var ReadingBilingual = {
       return;
     }
 
-    // If cards already exist on page, just unhide if hidden
-    const cards = contentDoc.querySelectorAll(".zotero-bilingual-card");
-    if (cards.length > 0) {
-      let anyHidden = false;
-      cards.forEach((c) => {
-        if (c.classList.contains("zotero-bilingual-hidden")) {
-          c.classList.remove("zotero-bilingual-hidden");
-          anyHidden = true;
-        }
-      });
-      const outerDoc = reader._iframeWindow?.document || reader._iframe?.contentDocument;
-      const btn = outerDoc?.getElementById("zotero-reading-bilingual-btn");
-      const btnText = outerDoc?.getElementById("zrb-btn-text");
-      if (btnText) btnText.textContent = "隐藏译文";
-      if (btn) btn.classList.add("active");
-      // Do not return: fall through so an interrupted run picks up where it
-      // stopped instead of leaving the untranslated tail sitting there.
+    // The selected display state stays in force while missing translations
+    // are loaded from cache or generated. A separate explicit translate
+    // command still reveals translations when they were hidden.
+    if (!preserveDisplayMode && this.getReaderDisplayMode(contentDoc) === "original") {
+      this.applyReaderDisplayMode(contentDoc, "bilingual");
     }
-
-    await this.translateReader(reader, contentDoc, false /* isAuto */, false /* forceReTranslate */);
+    try {
+      await this.translateReader(reader, contentDoc, false /* isAuto */, false /* forceReTranslate */);
+    } finally {
+      this.syncToolbarDisplayMode(reader);
+    }
   },
 
   async retranslateActiveReader(targetReader = null, win = null) {
@@ -2331,6 +2306,182 @@ var ReadingBilingual = {
   },
 
   // Toggle visibility of existing translated cards (Cmd/Ctrl+Shift+H)
+  markSourceForTranslationOnly(sourceEl) {
+    if (!sourceEl || sourceEl.nodeType !== 1 || sourceEl.dataset?.zrbTranslationOnlyPrepared === "2") return;
+    const doc = sourceEl.ownerDocument;
+    if (!doc || typeof doc.createTreeWalker !== "function") return;
+
+    const tagName = sourceEl.tagName?.toLowerCase();
+    if (tagName === "table" && !sourceEl.querySelector("img, svg, canvas, video, figure, [role='img'], math, .sdt-math, .katex, .MathJax, pre")) {
+      sourceEl.classList.add("zrb-source-table");
+    }
+
+    const walker = doc.createTreeWalker(sourceEl, 4 /* SHOW_TEXT */);
+    const textNodes = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (!node.nodeValue || !node.nodeValue.trim()) continue;
+      const parent = node.parentElement;
+      if (!parent || parent.closest(
+        ".zrb-original-text, .zotero-bilingual-card, .zrb-pdf-figure-fallback, .zrb-manual-figure, .zrb-manual-editor, script, style, textarea, input, button, pre, svg, canvas, video, audio, iframe, object, embed, math, .sdt-math, .katex, .MathJax, [role='math']"
+      )) continue;
+      textNodes.push(node);
+    }
+
+    for (const node of textNodes) {
+      const span = doc.createElement("span");
+      span.className = "zrb-original-text";
+      node.parentNode.insertBefore(span, node);
+      span.appendChild(node);
+    }
+    // Revisit documents prepared by older versions. Existing wrappers are
+    // skipped above, so upgrading does not nest spans or discard source text.
+    sourceEl.dataset.zrbTranslationOnlyPrepared = "2";
+  },
+
+  prepareTranslationOnlySources(doc) {
+    if (!doc) return;
+    for (const card of doc.querySelectorAll(".zotero-bilingual-card")) {
+      if (card.classList.contains("zotero-bilingual-toc-card")) {
+        let lastSource = card.previousElementSibling;
+        if (lastSource && /^(UL|OL)$/i.test(lastSource.tagName)) {
+          for (const item of Array.from(lastSource.children)) this.markSourceForTranslationOnly(item);
+          if (lastSource.previousElementSibling) this.markSourceForTranslationOnly(lastSource.previousElementSibling);
+        } else if (lastSource?.parentElement && /^(UL|OL)$/i.test(lastSource.parentElement.tagName)) {
+          const list = lastSource.parentElement;
+          for (const item of Array.from(list.children)) this.markSourceForTranslationOnly(item);
+          if (list.previousElementSibling) this.markSourceForTranslationOnly(list.previousElementSibling);
+        } else if (lastSource) {
+          this.markSourceForTranslationOnly(lastSource);
+        }
+        continue;
+      }
+
+      if (card.classList.contains("zotero-bilingual-roadmap-card")) {
+        let source = card.previousElementSibling;
+        let guard = 0;
+        while (source && guard++ < 20) {
+          const text = (source.innerText || "").trim();
+          this.markSourceForTranslationOnly(source);
+          if (this.isRoadmapLead(text) || this.isRoadmapHeading(text)) break;
+          if (!this.isRoadmapItem(text, source)) break;
+          source = source.previousElementSibling;
+        }
+        continue;
+      }
+
+      const source = card.parentElement?.tagName?.toLowerCase() === "li"
+        ? card.parentElement
+        : card.previousElementSibling;
+      if (source) this.markSourceForTranslationOnly(source);
+    }
+  },
+
+  getReaderDisplayMode(contentDoc) {
+    const root = contentDoc?.documentElement;
+    if (!root) return "original";
+    const mode = root.dataset?.zrbDisplayMode;
+    if (["original", "bilingual", "translation"].includes(mode)) return mode;
+    if (root.classList.contains("zrb-translation-only")) return "translation";
+    const cards = Array.from(contentDoc.querySelectorAll(".zotero-bilingual-card"));
+    if (cards.length && cards.every((card) => card.classList.contains("zotero-bilingual-hidden"))) return "original";
+    return cards.length ? "bilingual" : this.getPreferredReaderDisplayMode();
+  },
+
+  getPreferredReaderDisplayMode() {
+    try {
+      const mode = Zotero.Prefs.get(this.PREF_READER_DISPLAY_MODE, true);
+      return ["original", "bilingual", "translation"].includes(mode) ? mode : "original";
+    } catch (e) {
+      return "original";
+    }
+  },
+
+  restoreReaderDisplayMode(contentDoc) {
+    const root = contentDoc?.documentElement;
+    if (!root || !contentDoc.querySelector("#sdt-content")) return false;
+    if (["original", "bilingual", "translation"].includes(root.dataset.zrbDisplayMode)) return true;
+    return this.applyReaderDisplayMode(contentDoc, this.getPreferredReaderDisplayMode());
+  },
+
+  applyReaderDisplayMode(contentDoc, mode) {
+    if (!contentDoc?.documentElement || !["original", "bilingual", "translation"].includes(mode)) return false;
+    if (mode === "translation") this.prepareTranslationOnlySources(contentDoc);
+
+    const root = contentDoc.documentElement;
+    root.dataset.zrbDisplayMode = mode;
+    root.classList.toggle("zrb-display-original", mode === "original");
+    root.classList.toggle("zrb-translation-only", mode === "translation");
+    contentDoc.querySelectorAll(".zotero-bilingual-card").forEach((card) => {
+      card.classList.toggle("zotero-bilingual-hidden", mode === "original");
+    });
+    return true;
+  },
+
+  async setReaderDisplayMode(targetReader, mode, win = null) {
+    if (!["original", "bilingual", "translation"].includes(mode)) return false;
+    const reader = targetReader || this.getActiveReader(win);
+    if (!reader) {
+      Services.prompt.alert(null, "沉浸式双语", "请先在 Zotero 中打开文献阅读界面。");
+      return false;
+    }
+
+    const contentDoc = this.getRealContentDoc(reader);
+    if (!contentDoc) return false;
+    if (!this.applyReaderDisplayMode(contentDoc, mode)) return false;
+    try { Zotero.Prefs.set(this.PREF_READER_DISPLAY_MODE, mode, true); }
+    catch (e) { Zotero.debug("[ReadingBilingual] Could not save Reader display mode: " + e); }
+    this.syncToolbarDisplayMode(reader);
+    if (mode === "original" || contentDoc.querySelector(".zotero-bilingual-card")) return true;
+
+    // Selecting a translated state is also the entry point for translation.
+    // Reuse an in-flight request when the user switches the select again.
+    let task = this._displayModeTranslations.get(reader);
+    if (!task) {
+      task = this.translateActiveReader(reader, win, true /* preserveDisplayMode */);
+      this._displayModeTranslations.set(reader, task);
+    }
+    try {
+      await task;
+      if (this.getRealContentDoc(reader) !== contentDoc) return false;
+      return !!contentDoc.querySelector(".zotero-bilingual-card");
+    } finally {
+      if (this._displayModeTranslations.get(reader) === task) this._displayModeTranslations.delete(reader);
+      // If translation produced no cards, restore a truthful state for the same reader.
+      if (this.getRealContentDoc(reader) === contentDoc &&
+          !contentDoc.querySelector(".zotero-bilingual-card") &&
+          this.getReaderDisplayMode(contentDoc) !== "original") {
+        this.applyReaderDisplayMode(contentDoc, "original");
+        try { Zotero.Prefs.set(this.PREF_READER_DISPLAY_MODE, "original", true); }
+        catch (e) { Zotero.debug("[ReadingBilingual] Could not save Reader display mode: " + e); }
+      }
+      this.syncToolbarDisplayMode(reader);
+    }
+  },
+
+  async toggleTranslationOnlyMode(targetReader = null, win = null) {
+    const reader = targetReader || this.getActiveReader(win);
+    const contentDoc = reader && this.getRealContentDoc(reader);
+    if (!contentDoc) {
+      Services.prompt.alert(null, "沉浸式双语", "请先在 Zotero 中打开文献阅读界面。");
+      return;
+    }
+    const nextMode = this.getReaderDisplayMode(contentDoc) === "translation" ? "bilingual" : "translation";
+    return this.setReaderDisplayMode(reader, nextMode, win);
+  },
+
+  syncToolbarDisplayMode(reader, toolbarDoc = null) {
+    const doc = toolbarDoc || reader?._iframeWindow?.document || reader?._iframe?.contentDocument;
+    const button = doc?.getElementById("zrb-display-mode");
+    if (!button) return;
+    const contentDoc = this.getRealContentDoc(reader);
+    // Restore a fresh SDT before cached cards can determine the select's value.
+    this.restoreReaderDisplayMode(contentDoc);
+    const mode = this.getReaderDisplayMode(contentDoc);
+    if (button.value !== mode) button.value = mode;
+    button.classList.toggle("active", mode !== "original");
+  },
+
   async toggleVisibility(targetReader = null, win = null) {
     const activeReader = targetReader || this.getActiveReader(win);
     if (!activeReader) {
@@ -2351,22 +2502,9 @@ var ReadingBilingual = {
       }
       return;
     }
-    const isCurrentlyHidden = cards[0].classList.contains("zotero-bilingual-hidden");
-    cards.forEach((c) => {
-      if (isCurrentlyHidden) {
-        c.classList.remove("zotero-bilingual-hidden");
-      } else {
-        c.classList.add("zotero-bilingual-hidden");
-      }
-    });
-    const outerDoc = activeReader._iframeWindow?.document || activeReader._iframe?.contentDocument;
-    const btn = outerDoc?.getElementById("zotero-reading-bilingual-btn");
-    const btnText = outerDoc?.getElementById("zrb-btn-text");
-    if (btnText) btnText.textContent = isCurrentlyHidden ? "隐藏译文" : "显示译文";
-    if (btn) {
-      if (isCurrentlyHidden) btn.classList.add("active");
-      else btn.classList.remove("active");
-    }
+    const isCurrentlyHidden = this.getReaderDisplayMode(contentDoc) === "original";
+    this.applyReaderDisplayMode(contentDoc, isCurrentlyHidden ? "bilingual" : "original");
+    this.syncToolbarDisplayMode(activeReader);
   },
 
   createCardElement(reader, doc, origText, zhText, isTranslating = false) {
@@ -2755,8 +2893,10 @@ var ReadingBilingual = {
   async translateReader(reader, doc, isAuto = false, forceReTranslate = false) {
     let isResume = false;
     const outerDoc = reader._iframeWindow?.document || reader._iframe?.contentDocument || doc;
-    const btn = outerDoc.getElementById("zotero-reading-bilingual-btn") || doc.getElementById("zotero-reading-bilingual-btn");
+    const btn = outerDoc.getElementById("zrb-display-mode") || outerDoc.getElementById("zotero-reading-bilingual-btn") || doc.getElementById("zrb-display-mode") || doc.getElementById("zotero-reading-bilingual-btn");
     const btnText = outerDoc.getElementById("zrb-btn-text") || doc.getElementById("zrb-btn-text");
+    this.restoreReaderDisplayMode(doc);
+    this.syncToolbarDisplayMode(reader);
 
     // Say so once, up front, when no key is configured -- otherwise every
     // paragraph comes back as its own HTTP error card. A document that is
@@ -2814,6 +2954,7 @@ var ReadingBilingual = {
 
     // Helper for cleanly inserting translation cards (foolproof against duplicate cards)
     const insertCard = (el, card) => {
+      if (this.getReaderDisplayMode(doc) === "translation") this.markSourceForTranslationOnly(el);
       if (el.tagName && el.tagName.toLowerCase() === "li") {
         el.querySelectorAll(".zotero-bilingual-card").forEach((c) => c.remove());
         el.appendChild(card);
@@ -3766,6 +3907,7 @@ var ReadingBilingual = {
     titleRow.appendChild(badge);
     card.insertBefore(titleRow, card.firstChild);
     el.insertAdjacentElement("afterend", card);
+    if (this.getReaderDisplayMode(doc) === "translation") this.markSourceForTranslationOnly(el);
 
     if (zh) return;
 
@@ -3982,6 +4124,7 @@ ${block.items.map((it, idx) => `【T${idx + 1}】${it.text}`).join("\n")}
     card.appendChild(actions);
 
     block.lastElement.insertAdjacentElement("afterend", card);
+    if (this.getReaderDisplayMode(doc) === "translation") this.prepareTranslationOnlySources(doc);
   },
 
   async translateTocTogether(tocHeadingEl, tocItems, reader, doc, isAuto = false, forceReTranslate = false) {
@@ -4165,6 +4308,7 @@ ${block.items.map((it, idx) => `【分项${idx + 1}】${it.text}`).join("\n")}
     card.appendChild(actions);
 
     block.lastElement.insertAdjacentElement("afterend", card);
+    if (this.getReaderDisplayMode(doc) === "translation") this.prepareTranslationOnlySources(doc);
   },
 
   async translateSidebarOutline(reader, doc) {

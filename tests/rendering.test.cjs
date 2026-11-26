@@ -8,8 +8,9 @@ const { JSDOM } = require("jsdom");
 const root = path.resolve(__dirname, "..");
 function setup() {
   const loads = [];
+  const prefs = new Map();
   const scope = {
-    Zotero: { debug() {} },
+    Zotero: { debug() {}, Prefs: { get(key) { return prefs.get(key); }, set(key, value) { prefs.set(key, value); } } },
     Services: { appShell: { hiddenDOMWindow: { atob } }, scriptloader: { loadSubScript(filename, target) {
       loads.push(filename);
       vm.runInNewContext(fs.readFileSync(filename, "utf8"), target);
@@ -30,7 +31,7 @@ function setup() {
     doc.body.appendChild(card);
     return card.querySelector(".zrb-card-content");
   };
-  return { doc, renderer, plugin, render, loads };
+  return { doc, renderer, plugin, render, loads, prefs };
 }
 
 test("plain cached paragraphs keep line breaks without loading rendering libraries", () => {
@@ -55,6 +56,76 @@ test("Markdown renders emphasis, hard breaks, lists, headings and tables", () =>
   assert.equal(content.querySelector("td").textContent, "学习率");
   assert.equal(renderer.getSource(content), source);
   assert.ok(render("参数 | 值\n--- | ---\n学习率 | 0.01").querySelector("table"));
+});
+
+
+test("reader display mode selector remembers translation-only mode and preserves figures", async () => {
+  const { doc, plugin, prefs } = setup();
+  const sdt = doc.createElement("div");
+  sdt.id = "sdt-content";
+  const source = doc.createElement("p");
+  source.textContent = "Original paragraph ";
+  const image = doc.createElement("img");
+  image.alt = "chart";
+  source.appendChild(image);
+  sdt.appendChild(source);
+  doc.body.appendChild(sdt);
+  const card = plugin.createCardElement({}, doc, "Original paragraph", "译文");
+  source.insertAdjacentElement("afterend", card);
+
+  const toolbarDoc = new JSDOM("<!doctype html><html><head></head><body><div class='toolbar'><div class='end'><button class='toolbar-button find'></button></div></div></body></html>").window.document;
+  const reader = { _iframeWindow: { document: toolbarDoc } };
+  plugin.getRealContentDoc = () => doc;
+  const displayStyle = doc.createElement("style");
+  displayStyle.textContent = plugin.getGeneratedCSS();
+  doc.head.appendChild(displayStyle);
+  plugin.injectToolbarButton(reader, toolbarDoc);
+
+  const selector = toolbarDoc.getElementById("zrb-display-mode");
+  assert.ok(selector);
+  assert.deepEqual(Array.from(selector.options).map((option) => option.value), ["original", "bilingual", "translation"]);
+  selector.value = "translation";
+  selector.dispatchEvent(new toolbarDoc.defaultView.Event("change", { bubbles: true }));
+  await new Promise(setImmediate);
+
+  assert.equal(prefs.get(plugin.PREF_READER_DISPLAY_MODE), "translation");
+  assert.equal(doc.documentElement.dataset.zrbDisplayMode, "translation");
+  assert.ok(doc.documentElement.classList.contains("zrb-translation-only"));
+  assert.equal(source.querySelector(".zrb-original-text").textContent, "Original paragraph ");
+  assert.equal(doc.defaultView.getComputedStyle(source.querySelector(".zrb-original-text")).display, "none");
+  assert.equal(source.querySelector("img"), image);
+  assert.notEqual(doc.defaultView.getComputedStyle(image).display, "none");
+  assert.equal(selector.value, "translation");
+
+  const reopened = new JSDOM("<!doctype html><html><body><div id='sdt-content'><p>Reopened PDF text</p></div></body></html>").window.document;
+  plugin.restoreReaderDisplayMode(reopened);
+  assert.equal(reopened.documentElement.dataset.zrbDisplayMode, "translation");
+  assert.ok(reopened.documentElement.classList.contains("zrb-translation-only"));
+
+  await plugin.setReaderDisplayMode(reader, "bilingual");
+  assert.equal(doc.documentElement.classList.contains("zrb-translation-only"), false);
+  assert.notEqual(doc.defaultView.getComputedStyle(source.querySelector(".zrb-original-text")).display, "none");
+  await plugin.setReaderDisplayMode(reader, "original");
+  assert.equal(doc.documentElement.classList.contains("zrb-display-original"), true);
+  assert.equal(doc.defaultView.getComputedStyle(card).display, "none");
+  assert.equal(prefs.get(plugin.PREF_READER_DISPLAY_MODE), "original");
+});
+
+
+test("reader mode returns to original when translation yields no cards", async () => {
+  const { doc, plugin, prefs } = setup();
+  const sdt = doc.createElement("div");
+  sdt.id = "sdt-content";
+  doc.body.appendChild(sdt);
+  const reader = {};
+  plugin.getRealContentDoc = () => doc;
+  plugin.syncToolbarDisplayMode = () => {};
+  plugin.translateActiveReader = async () => {};
+
+  const applied = await plugin.setReaderDisplayMode(reader, "translation");
+  assert.equal(applied, false);
+  assert.equal(doc.documentElement.dataset.zrbDisplayMode, "original");
+  assert.equal(prefs.get(plugin.PREF_READER_DISPLAY_MODE), "original");
 });
 
 test("card styles preserve plain line breaks and allow rendered Markdown and editing", () => {
