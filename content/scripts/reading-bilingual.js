@@ -2754,6 +2754,7 @@ var ReadingBilingual = {
   // Core Translation Method with Instant Cache & Batching
   async translateReader(reader, doc, isAuto = false, forceReTranslate = false) {
     let isResume = false;
+    this.removeMisclassifiedTableCards(reader, doc);
     const outerDoc = reader._iframeWindow?.document || reader._iframe?.contentDocument || doc;
     const btn = outerDoc.getElementById("zotero-reading-bilingual-btn") || doc.getElementById("zotero-reading-bilingual-btn");
     const btnText = outerDoc.getElementById("zrb-btn-text") || doc.getElementById("zrb-btn-text");
@@ -3115,6 +3116,7 @@ var ReadingBilingual = {
     const translateTables = this.getTranslateTables();
     const tableUnitSelector = "#sdt-content table, #sdt-content figure.sdt-source-crop, table, figure.sdt-source-crop";
     for (const el of (translateTables ? Array.from(doc.querySelectorAll(tableUnitSelector)) : [])) {
+      if (!this.isTableTranslationSource(reader, el)) continue;
       if (el.closest(".zotero-bilingual-card, .zotero-bilingual-ref-notice")) continue;
       if (el.classList.contains("sdt-math") || el.querySelector(".sdt-math")) continue;
       if (tableBlocks.some((b) => b.element.contains(el))) continue;
@@ -3741,8 +3743,35 @@ var ReadingBilingual = {
     }
   },
 
+  isTableTranslationSource(reader, element) {
+    if (element?.matches?.("table")) return true;
+    if (!element?.matches?.("figure.sdt-source-crop") || element.classList.contains("sdt-math")) return false;
+
+    const ref = element.getAttribute("data-ref-path");
+    if (!ref || !/^\d+(?:\.\d+)*$/.test(ref)) return false;
+
+    try {
+      const internal = reader?._internalReader || reader;
+      let node = internal?._sdt?.structure;
+      for (const index of ref.split(".")) node = node?.content?.[Number(index)];
+      return node?.type === "table";
+    } catch {
+      return false;
+    }
+  },
+
+  removeMisclassifiedTableCards(reader, doc) {
+    for (const source of doc.querySelectorAll("figure.sdt-source-crop")) {
+      if (this.isTableTranslationSource(reader, source)) continue;
+      while (source.nextElementSibling?.classList.contains("zotero-bilingual-table-card")) {
+        source.nextElementSibling.remove();
+      }
+    }
+  },
+
   async translateTableBlock(block, reader, doc, forceReTranslate = false) {
     if (!block || !block.element || !block.text) return;
+    if (!this.isTableTranslationSource(reader, block.element)) return;
     const el = block.element;
     const text = block.text;
 

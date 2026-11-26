@@ -57,6 +57,24 @@ test("Markdown renders emphasis, hard breaks, lists, headings and tables", () =>
   assert.ok(render("参数 | 值\n--- | ---\n学习率 | 0.01").querySelector("table"));
 });
 
+test("image and unknown source crops cannot enter table translation or retain old table cards", async () => {
+  const { plugin, doc } = setup();
+  doc.body.innerHTML = '<figure class="sdt-source-crop" data-ref-path="0"><img><span>Architecture labels</span></figure><div class="zotero-bilingual-card zotero-bilingual-table-card">Wrong cached table</div><figcaption>Figure 1 Architecture</figcaption><figure class="sdt-source-crop" data-ref-path="1"></figure><figure class="sdt-source-crop" data-ref-path="2"></figure><figure class="sdt-source-crop"></figure>';
+  const reader = { _internalReader: { _sdt: { structure: { content: [{ type: "image" }, { type: "table" }, { type: "math" }] } } } };
+  const crops = doc.querySelectorAll("figure");
+  assert.equal(plugin.isTableTranslationSource(reader, crops[0]), false);
+  assert.equal(plugin.isTableTranslationSource(reader, crops[1]), true);
+  assert.equal(plugin.isTableTranslationSource(reader, crops[2]), false);
+  assert.equal(plugin.isTableTranslationSource(reader, crops[3]), false);
+  assert.equal(plugin.isTableTranslationSource({}, crops[1]), false);
+  plugin.loadCache = async () => { throw new Error("Image must not read a table translation"); };
+  plugin.callModelText = async () => { throw new Error("Image must not request a table translation"); };
+  plugin.removeMisclassifiedTableCards(reader, doc);
+  await plugin.translateTableBlock({ element: crops[0], text: "Architecture labels" }, reader, doc);
+  assert.equal(doc.querySelectorAll(".zotero-bilingual-table-card").length, 0);
+  assert.equal(doc.querySelectorAll("img,figcaption").length, 2);
+});
+
 test("card styles preserve plain line breaks and allow rendered Markdown and editing", () => {
   const { doc, render, plugin } = setup();
   const style = doc.createElement("style");
