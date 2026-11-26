@@ -2382,6 +2382,14 @@ var ReadingBilingual = {
     const actions = doc.createElement("div");
     actions.className = "zrb-card-actions";
 
+    const retranslateBtn = doc.createElement("button");
+    retranslateBtn.type = "button";
+    retranslateBtn.className = "zrb-card-action-btn zrb-btn-retranslate";
+    retranslateBtn.title = "重新翻译本段";
+    retranslateBtn.setAttribute("aria-label", "重新翻译本段");
+    retranslateBtn.textContent = "↻ 重译本段";
+    actions.appendChild(retranslateBtn);
+
     const editBtn = doc.createElement("button");
     editBtn.type = "button";
     editBtn.className = "zrb-card-action-btn zrb-btn-edit";
@@ -2416,9 +2424,58 @@ var ReadingBilingual = {
     ZRBTranslationRenderer.renderInto(content, text, { plain });
   },
 
+  async retranslateCard(card, reader, doc) {
+    if (!card?.isConnected || doc?.defaultView?.closed || card.classList.contains("zrb-in-edit")) return;
+    const originalText = card.dataset.origText;
+    if (!originalText || card.dataset.zrbRetranslating === "true") return;
+
+    const button = card.querySelector(".zrb-btn-retranslate");
+    card.dataset.zrbRetranslating = "true";
+    if (button) {
+      button.disabled = true;
+      button.textContent = "正在重译…";
+    }
+
+    try {
+      const provider = this.getProvider();
+      const result = provider === "gemini"
+        ? await this.callGeminiBatch([originalText], this.getApiKey(), this.getModel())
+        : await this.callOpenAIBatch([originalText], this.getApiKey(), this.getModel(), this.getBaseUrl());
+      const translation = Array.isArray(result) ? result[0] : "";
+      if (typeof translation !== "string" || !translation.trim()) {
+        throw new Error("模型没有返回可用译文");
+      }
+
+      const cleanTranslation = this.cleanTypography(translation.trim());
+      await this.saveCache(reader, { [originalText]: cleanTranslation });
+      if (!card.isConnected || doc?.defaultView?.closed) return;
+
+      const content = card.querySelector(".zrb-card-content");
+      if (content) this.setTranslationContent(content, cleanTranslation);
+      if (button) button.title = "重新翻译本段";
+    } catch (error) {
+      Zotero.debug("[ReadingBilingual] Paragraph retranslation failed: " + error);
+      if (button) button.title = "重译失败，点击重试：" + (error?.message || error);
+    } finally {
+      delete card.dataset.zrbRetranslating;
+      if (button?.isConnected) {
+        button.disabled = false;
+        button.textContent = "↻ 重译本段";
+      }
+    }
+  },
+
   attachCardActionHandlers(card, reader, doc, origText) {
     if (!card || card._zrbHandlersAttached) return;
     card._zrbHandlersAttached = true;
+
+    const retranslateBtn = card.querySelector(".zrb-btn-retranslate");
+    if (retranslateBtn) {
+      retranslateBtn.onclick = (event) => {
+        event.stopPropagation();
+        void this.retranslateCard(card, reader, doc);
+      };
+    }
 
     const startEdit = () => {
       if (card.classList.contains("zrb-in-edit")) return;
