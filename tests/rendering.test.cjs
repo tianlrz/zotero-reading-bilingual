@@ -57,6 +57,29 @@ test("Markdown renders emphasis, hard breaks, lists, headings and tables", () =>
   assert.ok(render("参数 | 值\n--- | ---\n学习率 | 0.01").querySelector("table"));
 });
 
+test("retranslating one paragraph bypasses its cached result and updates only that card", async () => {
+  const { plugin, doc } = setup();
+  const source = "One source paragraph";
+  const card = plugin.createCardElement({}, doc, source, "旧译文");
+  doc.body.appendChild(card);
+  const requests = [], saved = [];
+  plugin.getProvider = () => "gemini";
+  plugin.getApiKey = () => "test-key";
+  plugin.getModel = () => "gemini-test";
+  plugin.getBaseUrl = () => "";
+  plugin.loadCache = async () => { throw new Error("The old translation must not be read"); };
+  plugin.callGeminiBatch = async paragraphs => { requests.push(paragraphs); return ["新的译文"]; };
+  plugin.callOpenAIBatch = async () => { throw new Error("Gemini must use its provider-specific path"); };
+  plugin.saveCache = async (_reader, entries) => saved.push(entries);
+
+  card.querySelector(".zrb-btn-retranslate").click();
+  await new Promise(setImmediate);
+  assert.deepEqual(requests, [[source]]);
+  assert.equal(card.querySelector(".zrb-card-content").textContent, "新的译文");
+  assert.deepEqual(saved, [{ [source]: "新的译文" }]);
+  assert.equal(card.querySelector(".zrb-btn-retranslate").disabled, false);
+});
+
 test("card styles preserve plain line breaks and allow rendered Markdown and editing", () => {
   const { doc, render, plugin } = setup();
   const style = doc.createElement("style");
